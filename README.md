@@ -44,6 +44,34 @@ OAUTH_CLIENT_SECRET=your-client-secret
 ./run.sh
 ```
 
+### 4. Test
+
+Validate the proxy is working correctly:
+
+```bash
+# Run the test suite (proxy must be running)
+python3 test_proxy.py
+```
+
+The test script validates:
+- ✅ Health check endpoint
+- ✅ Model listing and retrieval
+- ✅ Chat completions (basic and with parameters)
+- ✅ Text completions (legacy endpoint)
+- ✅ Authentication validation
+- ✅ Dashboard accessibility
+- ✅ Dashboard API endpoints
+
+**Expected output:**
+```
+🎉 All tests passed! The proxy is working correctly.
+✅ Tests passed: 10
+❌ Tests failed: 0
+📈 Success rate: 100%
+```
+
+**Note**: For full testing, set `USE_PLACEHOLDER_MODE=true` in `.env` to test without a real endpoint.
+
 ## Development vs Production
 
 ### Development Mode
