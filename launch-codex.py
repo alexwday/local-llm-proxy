@@ -76,7 +76,7 @@ def check_proxy_running():
     return False
 
 
-def update_codex_config(proxy_port: str, proxy_token: str):
+def update_codex_config(proxy_port: str, proxy_token: str, model: str):
     """Update Codex config.toml to point to the proxy."""
     import toml
 
@@ -135,11 +135,11 @@ def update_codex_config(proxy_port: str, proxy_token: str):
             }
 
             # Set root level settings
-            config['model'] = 'test-model'
+            config['model'] = model
             config['model_provider'] = 'dashboard-proxy'
             config['max_tokens'] = 4096
 
-            logger.info("✓ Created dashboard-proxy provider")
+            logger.info(f"✓ Created dashboard-proxy provider with model: {model}")
 
         # Also update any other custom providers
         for provider_name, provider_config in config.get('model_providers', {}).items():
@@ -179,7 +179,7 @@ def launch_codex():
 
     # Update Codex config.toml to point to our proxy
     logger.info("Updating Codex configuration...")
-    success = update_codex_config(proxy_port, proxy_token)
+    success = update_codex_config(proxy_port, proxy_token, target_model)
 
     if not success:
         logger.error("Failed to update Codex config.toml!")
