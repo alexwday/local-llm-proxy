@@ -292,22 +292,40 @@ class RequestHandler:
             import json
 
             def generate_placeholder_stream():
-                # Send chunk with content
-                chunk1 = {
+                # Send initial chunk with role
+                chunk_role = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": created,
                     "model": request_data.get("model", self.config.default_model),
                     "choices": [{
                         "index": 0,
-                        "delta": {"role": "assistant", "content": "This is a placeholder streaming response from the local LLM proxy."},
+                        "delta": {"role": "assistant"},
                         "finish_reason": None
                     }]
                 }
-                yield f"data: {json.dumps(chunk1)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps(chunk_role)}\n\n".encode('utf-8')
+
+                # Send content in chunks (simulating streaming)
+                message = "This is a placeholder streaming response from the local LLM proxy."
+                words = message.split()
+                for i, word in enumerate(words):
+                    content = word + (" " if i < len(words) - 1 else "")
+                    chunk_content = {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": created,
+                        "model": request_data.get("model", self.config.default_model),
+                        "choices": [{
+                            "index": 0,
+                            "delta": {"content": content},
+                            "finish_reason": None
+                        }]
+                    }
+                    yield f"data: {json.dumps(chunk_content)}\n\n".encode('utf-8')
 
                 # Send final chunk
-                chunk2 = {
+                chunk_final = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": created,
@@ -318,7 +336,7 @@ class RequestHandler:
                         "finish_reason": "stop"
                     }]
                 }
-                yield f"data: {json.dumps(chunk2)}\n\n".encode('utf-8')
+                yield f"data: {json.dumps(chunk_final)}\n\n".encode('utf-8')
                 yield b"data: [DONE]\n\n"
 
             duration_ms = int((time.time() - start_time) * 1000)
