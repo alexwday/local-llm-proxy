@@ -109,19 +109,26 @@ def update_codex_config(proxy_port: str, proxy_token: str, model: str):
 
             # Fix structure: move model/model_provider/max_tokens to root if they're in provider section
             if 'model' in provider_config:
-                config['model'] = provider_config.pop('model')
-                logger.info("Moved 'model' to root level")
+                provider_config.pop('model')
+                logger.info("Removed 'model' from provider section (should be at root)")
             if 'model_provider' in provider_config:
-                config['model_provider'] = provider_config.pop('model_provider')
-                logger.info("Moved 'model_provider' to root level")
+                provider_config.pop('model_provider')
+                logger.info("Removed 'model_provider' from provider section (should be at root)")
             if 'max_tokens' in provider_config:
-                config['max_tokens'] = provider_config.pop('max_tokens')
-                logger.info("Moved 'max_tokens' to root level")
+                provider_config.pop('max_tokens')
+                logger.info("Removed 'max_tokens' from provider section (should be at root)")
+
+            # Update root level settings with correct values from .env
+            config['model'] = model
+            config['model_provider'] = 'dashboard-proxy'
+            if 'max_tokens' not in config:
+                config['max_tokens'] = 4096
 
             # Update base_url
             config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
             logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
-            logger.info(f"✓ Fixed config structure (moved model settings to root level)")
+            logger.info(f"✓ Updated model to: {model}")
+            logger.info(f"✓ Fixed config structure (model settings at root level)")
         else:
             logger.warning("dashboard-proxy provider NOT found in existing config!")
             logger.warning("Creating dashboard-proxy provider from scratch...")
