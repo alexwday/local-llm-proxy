@@ -141,11 +141,17 @@ class RequestHandler:
 
             logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
 
+            # For streaming, use longer timeout and keep connection alive
+            if is_streaming:
+                timeout_seconds = 600  # 10 minutes for long responses
+            else:
+                timeout_seconds = 120
+
             response = requests.post(
                 target_url,
                 json=request_data,
                 headers=headers,
-                timeout=120,
+                timeout=timeout_seconds,
                 stream=is_streaming  # Enable streaming if requested
             )
 
@@ -173,12 +179,24 @@ class RequestHandler:
                                 chunk_count += 1
                                 if chunk_count == 1:
                                     logger.info(f"First chunk received: {chunk[:100]}")
+                                elif chunk_count % 10 == 0:
+                                    logger.info(f"Received {chunk_count} chunks so far...")
+
+                                # Check if this is the [DONE] marker
+                                if b'[DONE]' in chunk:
+                                    logger.info(f"Received [DONE] marker at chunk {chunk_count}")
+
                                 # SSE format requires \n\n after each event
                                 # iter_lines() strips newlines, so we add both back
                                 yield chunk + b'\n\n'
+
                         logger.info(f"Stream complete. Total chunks: {chunk_count}")
+                        if chunk_count == 0:
+                            logger.warning("No chunks received from target endpoint!")
+                    except GeneratorExit:
+                        logger.warning(f"Client disconnected mid-stream. Chunks sent: {chunk_count}")
                     except Exception as e:
-                        logger.error(f"Error streaming response: {e}")
+                        logger.error(f"Error streaming response at chunk {chunk_count}: {e}")
                         import traceback
                         logger.error(traceback.format_exc())
                         # Send error as SSE
