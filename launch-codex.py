@@ -89,29 +89,57 @@ def update_codex_config(proxy_port: str, proxy_token: str):
 
     try:
         # Read existing config
+        logger.info(f"Reading config from: {config_path}")
         with open(config_path, 'r') as f:
             config = toml.load(f)
 
+        logger.info(f"Config loaded. Keys: {list(config.keys())}")
+
         # Update or create the proxy provider
         if 'model_providers' not in config:
+            logger.info("Creating model_providers section...")
             config['model_providers'] = {}
+
+        logger.info(f"Model providers found: {list(config.get('model_providers', {}).keys())}")
 
         # Update the dashboard-proxy provider if it exists
         if 'dashboard-proxy' in config.get('model_providers', {}):
+            logger.info("Found dashboard-proxy provider, updating...")
             provider_config = config['model_providers']['dashboard-proxy']
 
             # Fix structure: move model/model_provider/max_tokens to root if they're in provider section
             if 'model' in provider_config:
                 config['model'] = provider_config.pop('model')
+                logger.info("Moved 'model' to root level")
             if 'model_provider' in provider_config:
                 config['model_provider'] = provider_config.pop('model_provider')
+                logger.info("Moved 'model_provider' to root level")
             if 'max_tokens' in provider_config:
                 config['max_tokens'] = provider_config.pop('max_tokens')
+                logger.info("Moved 'max_tokens' to root level")
 
             # Update base_url
             config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
             logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
             logger.info(f"✓ Fixed config structure (moved model settings to root level)")
+        else:
+            logger.warning("dashboard-proxy provider NOT found in existing config!")
+            logger.warning("Creating dashboard-proxy provider from scratch...")
+
+            # Create the provider
+            config['model_providers']['dashboard-proxy'] = {
+                'name': 'Dashboard Proxy (Local Testing)',
+                'base_url': f'http://localhost:{proxy_port}/v1',
+                'env_key': 'CUSTOM_LLM_API_KEY',
+                'wire_api': 'chat'
+            }
+
+            # Set root level settings
+            config['model'] = 'test-model'
+            config['model_provider'] = 'dashboard-proxy'
+            config['max_tokens'] = 4096
+
+            logger.info("✓ Created dashboard-proxy provider")
 
         # Also update any other custom providers
         for provider_name, provider_config in config.get('model_providers', {}).items():
@@ -123,6 +151,7 @@ def update_codex_config(proxy_port: str, proxy_token: str):
                     logger.info(f"✓ Updated {provider_name} base_url: {old_url} → http://localhost:{proxy_port}/v1")
 
         # Write updated config back
+        logger.info(f"Writing updated config to: {config_path}")
         with open(config_path, 'w') as f:
             toml.dump(config, f)
 
@@ -131,6 +160,8 @@ def update_codex_config(proxy_port: str, proxy_token: str):
 
     except Exception as e:
         logger.error(f"Failed to update Codex config: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return False
 
 
