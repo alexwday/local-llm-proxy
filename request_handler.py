@@ -173,7 +173,9 @@ class RequestHandler:
                                 chunk_count += 1
                                 if chunk_count == 1:
                                     logger.info(f"First chunk received: {chunk[:100]}")
-                                yield chunk + b'\n'
+                                # SSE format requires \n\n after each event
+                                # iter_lines() strips newlines, so we add both back
+                                yield chunk + b'\n\n'
                         logger.info(f"Stream complete. Total chunks: {chunk_count}")
                     except Exception as e:
                         logger.error(f"Error streaming response: {e}")
