@@ -197,11 +197,8 @@ def launch_codex():
     # Launch OpenAI Codex CLI
     # Force use of dashboard-proxy provider via command line
     try:
-        subprocess.run([
-            'codex',
-            '--config', 'model_provider=dashboard-proxy',
-            '--config', 'model=test-model'
-        ], env=env)
+        # Launch without forcing provider first - let it use config.toml
+        subprocess.run(['codex'], env=env)
     except FileNotFoundError:
         logger.error("✗ 'codex' command not found")
         logger.error("")

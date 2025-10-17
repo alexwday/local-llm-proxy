@@ -84,8 +84,10 @@ Launch OpenAI Codex CLI through the proxy (uses OpenAI format natively - no form
 ./run-dev.sh  # or ./run.sh for production
 
 # In terminal 2: Launch OpenAI Codex CLI
-python3 launch-codex.py
+./launch-codex.sh
 ```
+
+**Note:** Use `launch-codex.sh` (not `launch-codex.py`) to ensure the venv Python with required packages is used.
 
 **Key differences from Claude Code:**
 - OpenAI Codex CLI uses OpenAI format natively (no Anthropic format conversion)
