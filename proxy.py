@@ -226,6 +226,11 @@ def anthropic_messages():
     # Get Anthropic format request
     anthropic_request = request.get_json()
 
+    # Log background requests for debugging
+    if logger.isEnabledFor(logging.DEBUG):
+        msg_count = len(anthropic_request.get("messages", []))
+        logger.debug(f"Anthropic Messages request: {msg_count} messages, model: {anthropic_request.get('model', 'unknown')}")
+
     try:
         # Suppress LiteLLM logging
         litellm.suppress_debug_info = True
@@ -253,6 +258,11 @@ def anthropic_messages():
                 text_parts = [block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"]
                 content = "\n".join(text_parts)
 
+            # Skip empty messages
+            if not content or (isinstance(content, str) and not content.strip()):
+                logger.warning(f"Skipping empty message with role: {msg.get('role', 'unknown')}")
+                continue
+
             messages.append({
                 "role": msg.get("role", "user"),
                 "content": content
@@ -263,6 +273,20 @@ def anthropic_messages():
         mapped_model = config.map_model_name(incoming_model)
 
         logger.info(f"Model mapping: {incoming_model} → {mapped_model}")
+
+        # Validate we have at least one message
+        if not messages:
+            logger.error("No valid messages after processing")
+            error_response = {
+                "type": "error",
+                "error": {
+                    "type": "invalid_request_error",
+                    "message": "Request contained no valid messages"
+                }
+            }
+            duration_ms = int((time.time() - start_time) * 1000)
+            log_manager.log_api_call('POST', '/v1/messages', 400, duration_ms, anthropic_request, error_response)
+            return jsonify(error_response), 400
 
         openai_request = {
             "model": mapped_model,
