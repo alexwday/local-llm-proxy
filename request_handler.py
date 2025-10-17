@@ -5,7 +5,7 @@ import uuid
 import logging
 import requests
 from typing import Optional, Dict, Any
-from flask import jsonify
+from flask import jsonify, Response, stream_with_context
 
 logger = logging.getLogger(__name__)
 
@@ -133,13 +133,17 @@ class RequestHandler:
             # Add authorization
             self._add_authorization_header(headers)
 
-            logger.info(f"Forwarding request to: {target_url}")
+            # Check if streaming is requested
+            is_streaming = request_data.get('stream', False)
+
+            logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
 
             response = requests.post(
                 target_url,
                 json=request_data,
                 headers=headers,
-                timeout=120
+                timeout=120,
+                stream=is_streaming  # Enable streaming if requested
             )
 
             duration_ms = int((time.time() - start_time) * 1000)
@@ -154,7 +158,32 @@ class RequestHandler:
                 self.log_manager.log_api_call('POST', '/v1/chat/completions', response.status_code, duration_ms, request_data, error_data)
                 return jsonify(error_data), response.status_code
 
-            # Parse response JSON with better error handling
+            # Handle streaming responses
+            if is_streaming:
+                def generate():
+                    try:
+                        for chunk in response.iter_lines():
+                            if chunk:
+                                yield chunk + b'\n'
+                    except Exception as e:
+                        logger.error(f"Error streaming response: {e}")
+                        # Send error as SSE
+                        error_chunk = f'data: {{"error": {{"message": "{str(e)}"}}}}\n\n'
+                        yield error_chunk.encode('utf-8')
+
+                # Log streaming request (no response data yet)
+                self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, {"streaming": True})
+
+                return Response(
+                    stream_with_context(generate()),
+                    content_type='text/event-stream',
+                    headers={
+                        'Cache-Control': 'no-cache',
+                        'X-Accel-Buffering': 'no'
+                    }
+                ), 200
+
+            # Parse response JSON with better error handling (non-streaming)
             try:
                 response_data = response.json()
             except Exception as json_err:
@@ -256,7 +285,55 @@ class RequestHandler:
         """Return placeholder chat completion response."""
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
         created = int(time.time())
+        is_streaming = request_data.get('stream', False)
 
+        # Handle streaming placeholder response
+        if is_streaming:
+            import json
+
+            def generate_placeholder_stream():
+                # Send chunk with content
+                chunk1 = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": request_data.get("model", self.config.default_model),
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"role": "assistant", "content": "This is a placeholder streaming response from the local LLM proxy."},
+                        "finish_reason": None
+                    }]
+                }
+                yield f"data: {json.dumps(chunk1)}\n\n".encode('utf-8')
+
+                # Send final chunk
+                chunk2 = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": request_data.get("model", self.config.default_model),
+                    "choices": [{
+                        "index": 0,
+                        "delta": {},
+                        "finish_reason": "stop"
+                    }]
+                }
+                yield f"data: {json.dumps(chunk2)}\n\n".encode('utf-8')
+                yield b"data: [DONE]\n\n"
+
+            duration_ms = int((time.time() - start_time) * 1000)
+            self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, {"streaming": True, "placeholder": True})
+
+            return Response(
+                stream_with_context(generate_placeholder_stream()),
+                content_type='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no'
+                }
+            ), 200
+
+        # Non-streaming response
         response = {
             "id": completion_id,
             "object": "chat.completion",
