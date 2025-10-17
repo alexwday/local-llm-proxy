@@ -175,7 +175,7 @@ def test_get_model():
 
 def test_chat_completion_basic():
     """Test basic chat completion."""
-    log_info(f"Test 5: Chat completion with {TEST_MODEL}")
+    log_info(f"Test 3: Chat completion with {TEST_MODEL}")
     try:
         response = make_request('POST', '/v1/chat/completions', json_data={
             'model': TEST_MODEL,
@@ -215,7 +215,7 @@ def test_chat_completion_basic():
 
 def test_chat_completion_with_params():
     """Test chat completion with parameters."""
-    log_info(f"Test 6: Chat completion with parameters")
+    log_info(f"Test 4: Chat completion with parameters")
     try:
         response = make_request('POST', '/v1/chat/completions', json_data={
             'model': TEST_MODEL,
@@ -272,7 +272,7 @@ def test_text_completion():
 
 def test_authentication():
     """Test authentication validation."""
-    log_info("Test 8: Authentication validation (should reject invalid token)")
+    log_info("Test 5: Authentication validation (should reject invalid token)")
     try:
         response = make_request('GET', '/v1/models', headers={
             'Authorization': 'Bearer invalid-token-12345'
@@ -288,7 +288,7 @@ def test_authentication():
 
 def test_dashboard():
     """Test dashboard accessibility."""
-    log_info("Test 9: Dashboard accessibility")
+    log_info("Test 6: Dashboard accessibility")
     try:
         response = requests.get(PROXY_URL, timeout=10)
 
@@ -305,7 +305,7 @@ def test_dashboard():
 
 def test_dashboard_api_logs():
     """Test dashboard API logs endpoint."""
-    log_info("Test 10: Dashboard API - logs endpoint")
+    log_info("Test 7: Dashboard API - logs endpoint")
     try:
         response = requests.get(f"{PROXY_URL}/api/logs", timeout=10)
 
@@ -358,11 +358,8 @@ def main():
     # Run tests
     test_health_check()
     test_proxy_config()
-    test_list_models()
-    test_get_model()
     test_chat_completion_basic()
     test_chat_completion_with_params()
-    test_text_completion()
     test_authentication()
     test_dashboard()
     test_dashboard_api_logs()

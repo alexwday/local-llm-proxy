@@ -56,8 +56,9 @@ python3 test_proxy.py
 The test script automatically:
 - ✅ Loads configuration from `.env`
 - ✅ Shows proxy mode (dev/production, placeholder/real endpoint)
-- ✅ Tests all API endpoints with proper authentication
+- ✅ Tests chat completion endpoints with proper authentication
 - ✅ Validates OAuth and SSL configuration in production mode
+- ✅ Tests dashboard and logging functionality
 
 **Customize test model:**
 ```bash
@@ -98,7 +99,7 @@ python3 test_proxy.py
 **Expected output:**
 ```
 🎉 All tests passed! The proxy is working correctly.
-✅ Tests passed: 10
+✅ Tests passed: 7
 ❌ Tests failed: 0
 📈 Success rate: 100%
 ```
