@@ -76,6 +76,52 @@ def check_proxy_running():
     return False
 
 
+def update_codex_config(proxy_port: str, proxy_token: str):
+    """Update Codex config.toml to point to the proxy."""
+    import toml
+
+    codex_home = os.path.expanduser('~/.codex')
+    config_path = os.path.join(codex_home, 'config.toml')
+
+    if not os.path.exists(config_path):
+        logger.warning(f"Codex config not found at {config_path}")
+        return False
+
+    try:
+        # Read existing config
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+
+        # Update or create the proxy provider
+        if 'model_providers' not in config:
+            config['model_providers'] = {}
+
+        # Update the dashboard-proxy provider if it exists
+        if 'dashboard-proxy' in config.get('model_providers', {}):
+            config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
+            logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
+
+        # Also update any other custom providers
+        for provider_name, provider_config in config.get('model_providers', {}).items():
+            if isinstance(provider_config, dict) and 'base_url' in provider_config:
+                # Update if it looks like it's pointing to localhost on a different port
+                if 'localhost' in provider_config.get('base_url', ''):
+                    old_url = provider_config['base_url']
+                    provider_config['base_url'] = f'http://localhost:{proxy_port}/v1'
+                    logger.info(f"✓ Updated {provider_name} base_url: {old_url} → http://localhost:{proxy_port}/v1")
+
+        # Write updated config back
+        with open(config_path, 'w') as f:
+            toml.dump(config, f)
+
+        logger.info(f"✓ Codex config updated at {config_path}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to update Codex config: {e}")
+        return False
+
+
 def launch_codex():
     """Launch OpenAI Codex CLI with proxy configuration."""
 
@@ -88,11 +134,16 @@ def launch_codex():
         logger.error("PROXY_ACCESS_TOKEN not found in .env file")
         sys.exit(1)
 
+    # Update Codex config.toml to point to our proxy
+    logger.info("Updating Codex configuration...")
+    update_codex_config(proxy_port, proxy_token)
+    logger.info("")
+
     # Build environment variables for OpenAI Codex CLI
     env = os.environ.copy()
 
     # Configure OpenAI Codex CLI to use the proxy
-    # Codex uses OpenAI environment variables
+    # Codex uses OpenAI environment variables (only works for built-in openai provider)
     env['OPENAI_BASE_URL'] = f'http://localhost:{proxy_port}/v1'
     env['OPENAI_API_KEY'] = proxy_token
 
@@ -116,10 +167,14 @@ def launch_codex():
     logger.info(f"  Target Model:        {target_model}")
     logger.info(f"  Codex Home:          {env['CODEX_HOME']}")
     logger.info("")
-    logger.info("🔄 OpenAI Codex CLI uses OpenAI format natively:")
+    logger.info("🔄 OpenAI Codex CLI configuration:")
+    logger.info("   → Custom provider config.toml updated to use proxy")
     logger.info("   → Requests sent to /v1/chat/completions (OpenAI format)")
     logger.info("   → No format conversion needed - bypasses Anthropic formatting")
     logger.info("   → Works directly with your custom models")
+    logger.info("")
+    logger.info("💡 Note: Codex custom providers ignore OPENAI_BASE_URL env var")
+    logger.info("   This script automatically updates ~/.codex/config.toml instead")
     logger.info("")
     logger.info("Check the dashboard at http://localhost:{} to see requests.".format(proxy_port))
     logger.info("")
