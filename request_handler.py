@@ -99,10 +99,13 @@ class RequestHandler:
             return error_response, 400
 
         # Check mode
+        logger.info(f"Placeholder mode: {self.config.use_placeholder_mode}")
         if self.config.use_placeholder_mode:
+            logger.info("Using placeholder response")
             return self._placeholder_chat_response(request_data, start_time)
 
         # Forward to target
+        logger.info("Forwarding to target endpoint")
         return self._forward_chat_request(request_data, start_time)
 
     def completions(self, request_data: Dict):
@@ -286,6 +289,8 @@ class RequestHandler:
         completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
         created = int(time.time())
         is_streaming = request_data.get('stream', False)
+
+        logger.info(f"Placeholder response - streaming: {is_streaming}")
 
         # Handle streaming placeholder response
         if is_streaming:
