@@ -96,6 +96,10 @@ def launch_codex():
     env['OPENAI_BASE_URL'] = f'http://localhost:{proxy_port}/v1'
     env['OPENAI_API_KEY'] = proxy_token
 
+    # Set additional API keys that custom Codex providers might expect
+    # (Codex config.toml custom providers may reference different env variables)
+    env['CUSTOM_LLM_API_KEY'] = proxy_token
+
     # Optional: Set Codex home directory
     if 'CODEX_HOME' not in env:
         env['CODEX_HOME'] = os.path.expanduser('~/.codex')
@@ -106,10 +110,11 @@ def launch_codex():
     logger.info("=" * 80)
     logger.info("")
     logger.info("Configuration:")
-    logger.info(f"  Base URL:      {env['OPENAI_BASE_URL']}")
-    logger.info(f"  API Key:       {proxy_token[:20]}...")
-    logger.info(f"  Target Model:  {target_model}")
-    logger.info(f"  Codex Home:    {env['CODEX_HOME']}")
+    logger.info(f"  Base URL:            {env['OPENAI_BASE_URL']}")
+    logger.info(f"  OPENAI_API_KEY:      {proxy_token[:20]}...")
+    logger.info(f"  CUSTOM_LLM_API_KEY:  {proxy_token[:20]}...")
+    logger.info(f"  Target Model:        {target_model}")
+    logger.info(f"  Codex Home:          {env['CODEX_HOME']}")
     logger.info("")
     logger.info("🔄 OpenAI Codex CLI uses OpenAI format natively:")
     logger.info("   → Requests sent to /v1/chat/completions (OpenAI format)")
