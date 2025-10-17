@@ -16,6 +16,7 @@ class Config:
         self.target_endpoint = os.getenv('TARGET_ENDPOINT', 'https://your-llm-endpoint.com/v1')
         self.target_api_key = os.getenv('TARGET_API_KEY')
         self.use_placeholder_mode = os.getenv('USE_PLACEHOLDER_MODE', 'false').lower() == 'true'
+        self.strip_zero_temperature = os.getenv('STRIP_ZERO_TEMPERATURE', 'true').lower() == 'true'
 
         # Model configuration
         self.available_models = self._parse_models(os.getenv('AVAILABLE_MODELS', 'gpt-4,gpt-4-turbo,gpt-4o,gpt-4o-mini,gpt-3.5-turbo'))

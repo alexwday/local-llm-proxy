@@ -64,6 +64,13 @@ class RequestHandler:
         """Handle chat completion requests."""
         start_time = time.time()
 
+        # Strip temperature=0 if configured (some models don't support it)
+        if self.config.strip_zero_temperature and request_data:
+            temp = request_data.get('temperature')
+            if temp is not None and temp == 0:
+                logger.info(f"Removing temperature=0 (STRIP_ZERO_TEMPERATURE=true)")
+                request_data.pop('temperature', None)
+
         # Validate required fields
         if not request_data or not request_data.get('model'):
             error_response = jsonify({

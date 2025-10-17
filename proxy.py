@@ -272,8 +272,15 @@ def anthropic_messages():
         # Map optional parameters
         if "max_tokens" in anthropic_request:
             openai_request["max_tokens"] = anthropic_request["max_tokens"]
+
+        # Handle temperature - default to 1 if 0 or not set (some models don't support 0)
         if "temperature" in anthropic_request:
-            openai_request["temperature"] = anthropic_request["temperature"]
+            temp = anthropic_request["temperature"]
+            # Skip temperature if it's 0 (some models like GPT-5 don't support it)
+            # or default it to 1 if needed
+            if temp > 0:
+                openai_request["temperature"] = temp
+
         if "top_p" in anthropic_request:
             openai_request["top_p"] = anthropic_request["top_p"]
         if "stream" in anthropic_request:
