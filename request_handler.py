@@ -174,6 +174,7 @@ class RequestHandler:
                 def generate():
                     try:
                         chunk_count = 0
+                        full_response_text = ""
                         for chunk in response.iter_lines():
                             if chunk:
                                 chunk_count += 1
@@ -181,6 +182,29 @@ class RequestHandler:
                                     logger.info(f"First chunk received: {chunk[:100]}")
                                 elif chunk_count % 10 == 0:
                                     logger.info(f"Received {chunk_count} chunks so far...")
+
+                                # Try to extract content from chunk for debugging
+                                try:
+                                    import json
+                                    if chunk.startswith(b'data: ') and not b'[DONE]' in chunk:
+                                        chunk_json = json.loads(chunk[6:])  # Skip "data: "
+                                        if 'choices' in chunk_json and len(chunk_json['choices']) > 0:
+                                            delta = chunk_json['choices'][0].get('delta', {})
+                                            content = delta.get('content', '')
+                                            if content:
+                                                full_response_text += content
+
+                                        # Log usage if present (shows token count)
+                                        if 'usage' in chunk_json:
+                                            usage = chunk_json['usage']
+                                            logger.info(f"Usage tokens at chunk {chunk_count}: {usage}")
+                                            # Check for 4-token responses
+                                            if usage.get('completion_tokens') == 4:
+                                                logger.warning(f"!!! 4-TOKEN RESPONSE DETECTED !!!")
+                                                logger.warning(f"Full chunk: {chunk}")
+                                                logger.warning(f"Response so far: {full_response_text}")
+                                except:
+                                    pass  # Ignore parsing errors
 
                                 # Check if this is the [DONE] marker
                                 if b'[DONE]' in chunk:
@@ -191,6 +215,9 @@ class RequestHandler:
                                 yield chunk + b'\n\n'
 
                         logger.info(f"Stream loop ended. Total chunks: {chunk_count}")
+                        logger.info(f"Full response text: {full_response_text}")
+                        logger.info(f"Response text length: {len(full_response_text)} chars")
+
                         if chunk_count == 0:
                             logger.warning("No chunks received from target endpoint!")
 
