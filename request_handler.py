@@ -142,12 +142,28 @@ class RequestHandler:
                 try:
                     error_data = response.json()
                 except:
-                    error_data = {"error": {"message": response.text}}
+                    error_data = {"error": {"message": response.text or "Empty response from target"}}
 
                 self.log_manager.log_api_call('POST', '/v1/chat/completions', response.status_code, duration_ms, request_data, error_data)
                 return jsonify(error_data), response.status_code
 
-            response_data = response.json()
+            # Parse response JSON with better error handling
+            try:
+                response_data = response.json()
+            except Exception as json_err:
+                logger.error(f"Failed to parse target response as JSON: {json_err}")
+                logger.error(f"Response status: {response.status_code}")
+                logger.error(f"Response body (first 500 chars): {response.text[:500]}")
+                error_data = {
+                    "error": {
+                        "message": f"Target returned invalid JSON: {str(json_err)}",
+                        "type": "invalid_response_error",
+                        "response_preview": response.text[:200]
+                    }
+                }
+                self.log_manager.log_api_call('POST', '/v1/chat/completions', 500, duration_ms, request_data, error_data)
+                return jsonify(error_data), 500
+
             self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, response_data)
             return jsonify(response_data), 200
 
