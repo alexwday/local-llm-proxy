@@ -46,7 +46,9 @@ OAUTH_CLIENT_SECRET=your-client-secret
 ./run.sh
 ```
 
-### 4. Use with Claude Code
+### 4. Use with AI Coding Assistants
+
+#### Claude Code CLI
 
 Launch Claude Code CLI through the proxy:
 
@@ -71,6 +73,29 @@ alias claude-proxy="python3 ~/Projects/local-llm-proxy/launch-claude.py"
 # Then from anywhere:
 cd ~/my-project
 claude-proxy
+```
+
+#### OpenAI Codex CLI
+
+Launch OpenAI Codex CLI through the proxy (uses OpenAI format natively - no format conversion needed):
+
+```bash
+# In terminal 1: Start the proxy
+./run-dev.sh  # or ./run.sh for production
+
+# In terminal 2: Launch OpenAI Codex CLI
+python3 launch-codex.py
+```
+
+**Key differences from Claude Code:**
+- OpenAI Codex CLI uses OpenAI format natively (no Anthropic format conversion)
+- Requests go directly to `/v1/chat/completions` endpoint
+- Works seamlessly with custom models without litellm reformatting
+
+**Installation:**
+```bash
+npm install -g @openai/codex
+# Or use npx: npx @openai/codex
 ```
 
 ### 5. Test
