@@ -98,8 +98,20 @@ def update_codex_config(proxy_port: str, proxy_token: str):
 
         # Update the dashboard-proxy provider if it exists
         if 'dashboard-proxy' in config.get('model_providers', {}):
+            provider_config = config['model_providers']['dashboard-proxy']
+
+            # Fix structure: move model/model_provider/max_tokens to root if they're in provider section
+            if 'model' in provider_config:
+                config['model'] = provider_config.pop('model')
+            if 'model_provider' in provider_config:
+                config['model_provider'] = provider_config.pop('model_provider')
+            if 'max_tokens' in provider_config:
+                config['max_tokens'] = provider_config.pop('max_tokens')
+
+            # Update base_url
             config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
             logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
+            logger.info(f"✓ Fixed config structure (moved model settings to root level)")
 
         # Also update any other custom providers
         for provider_name, provider_config in config.get('model_providers', {}).items():
