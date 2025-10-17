@@ -292,6 +292,8 @@ class RequestHandler:
             import json
 
             def generate_placeholder_stream():
+                logger.info("Starting placeholder stream generation...")
+
                 # Send initial chunk with role
                 chunk_role = {
                     "id": completion_id,
@@ -304,11 +306,14 @@ class RequestHandler:
                         "finish_reason": None
                     }]
                 }
-                yield f"data: {json.dumps(chunk_role)}\n\n".encode('utf-8')
+                chunk_data = f"data: {json.dumps(chunk_role)}\n\n".encode('utf-8')
+                logger.info(f"Sending role chunk: {chunk_data[:100]}")
+                yield chunk_data
 
                 # Send content in chunks (simulating streaming)
                 message = "This is a placeholder streaming response from the local LLM proxy."
                 words = message.split()
+                logger.info(f"Sending {len(words)} content chunks...")
                 for i, word in enumerate(words):
                     content = word + (" " if i < len(words) - 1 else "")
                     chunk_content = {
@@ -322,7 +327,10 @@ class RequestHandler:
                             "finish_reason": None
                         }]
                     }
-                    yield f"data: {json.dumps(chunk_content)}\n\n".encode('utf-8')
+                    chunk_data = f"data: {json.dumps(chunk_content)}\n\n".encode('utf-8')
+                    if i == 0:
+                        logger.info(f"First content chunk: {chunk_data[:100]}")
+                    yield chunk_data
 
                 # Send final chunk
                 chunk_final = {
@@ -336,8 +344,13 @@ class RequestHandler:
                         "finish_reason": "stop"
                     }]
                 }
-                yield f"data: {json.dumps(chunk_final)}\n\n".encode('utf-8')
+                chunk_data = f"data: {json.dumps(chunk_final)}\n\n".encode('utf-8')
+                logger.info(f"Sending final chunk: {chunk_data[:100]}")
+                yield chunk_data
+
+                logger.info("Sending [DONE]")
                 yield b"data: [DONE]\n\n"
+                logger.info("Stream complete!")
 
             duration_ms = int((time.time() - start_time) * 1000)
             self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, {"streaming": True, "placeholder": True})
