@@ -181,12 +181,13 @@ def launch_codex():
     logger.info("")
     logger.info("🔄 OpenAI Codex CLI configuration:")
     logger.info("   → Custom provider config.toml updated to use proxy")
+    logger.info("   → Launching with: --config model_provider=dashboard-proxy")
     logger.info("   → Requests sent to /v1/chat/completions (OpenAI format)")
     logger.info("   → No format conversion needed - bypasses Anthropic formatting")
     logger.info("   → Works directly with your custom models")
     logger.info("")
-    logger.info("💡 Note: Codex custom providers ignore OPENAI_BASE_URL env var")
-    logger.info("   This script automatically updates ~/.codex/config.toml instead")
+    logger.info("💡 Note: Using explicit --config flags to force provider selection")
+    logger.info("   This ensures Codex uses dashboard-proxy instead of default openai")
     logger.info("")
     logger.info("Check the dashboard at http://localhost:{} to see requests.".format(proxy_port))
     logger.info("")
@@ -194,8 +195,13 @@ def launch_codex():
     logger.info("")
 
     # Launch OpenAI Codex CLI
+    # Force use of dashboard-proxy provider via command line
     try:
-        subprocess.run(['codex'], env=env)
+        subprocess.run([
+            'codex',
+            '--config', 'model_provider=dashboard-proxy',
+            '--config', 'model=test-model'
+        ], env=env)
     except FileNotFoundError:
         logger.error("✗ 'codex' command not found")
         logger.error("")
