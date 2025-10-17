@@ -1,14 +1,14 @@
 /**
  * RBC Security Integration
  *
- * This module replicates the functionality of the Python rbc_security package
- * for Node.js environments. It configures SSL/TLS certificates for corporate
- * network environments.
+ * This module calls the Python rbc_security package to configure SSL/TLS
+ * certificates for corporate network environments.
  *
- * In Python, rbc_security.enable_certs() sets environment variables for SSL.
- * In Node.js, we need to set NODE_EXTRA_CA_CERTS and potentially other variables.
+ * It executes setup_rbc_security.py which calls rbc_security.enable_certs()
+ * and returns environment variables that Node.js will use.
  */
 
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logServerEvent } from '../logger';
@@ -40,65 +40,114 @@ export function loadSSLConfig(): SSLConfig {
 }
 
 /**
- * Enable SSL certificates for corporate environments
+ * Enable SSL certificates using Python rbc_security package
  *
- * This function replicates the behavior of rbc_security.enable_certs()
- * from the Python package. It sets up Node.js to use custom CA certificates.
+ * Calls setup_rbc_security.py which executes rbc_security.enable_certs()
+ * and returns environment variables for Node.js to use.
  *
- * @param config - SSL configuration (uses env vars if not provided)
- * @returns true if SSL was configured, false otherwise
+ * @returns true if rbc_security was configured, false otherwise
  */
-export function enableCerts(config?: SSLConfig): boolean {
+export function enableCerts(): boolean {
   try {
-    const sslConfig = config || loadSSLConfig();
+    logServerEvent('info', 'Attempting to configure RBC Security certificates...');
 
-    // Check if any SSL config is provided
-    if (!sslConfig.caCertPath && !sslConfig.clientCertPath) {
-      logServerEvent('info', 'No SSL certificates configured (using system defaults)');
-      return false;
+    // Find the Python script
+    const scriptPath = path.join(process.cwd(), 'setup_rbc_security.py');
+
+    if (!fs.existsSync(scriptPath)) {
+      logServerEvent('warn', 'setup_rbc_security.py not found, skipping RBC Security setup');
+      return setupFallbackSSL();
     }
 
-    logServerEvent('info', 'Configuring SSL certificates...');
+    // Execute the Python script
+    try {
+      const output = execSync(`python3 ${scriptPath}`, {
+        encoding: 'utf8',
+        timeout: 10000, // 10 second timeout
+      });
 
-    // Configure CA certificates
-    if (sslConfig.caCertPath) {
-      if (!fs.existsSync(sslConfig.caCertPath)) {
-        logServerEvent('warn', `CA certificate not found: ${sslConfig.caCertPath}`);
+      const result = JSON.parse(output.trim());
+
+      if (result.success) {
+        // Apply environment variables from rbc_security
+        if (result.env_vars) {
+          Object.entries(result.env_vars).forEach(([key, value]) => {
+            if (value && typeof value === 'string') {
+              process.env[key] = value;
+              logServerEvent('info', `Set ${key} from rbc_security`);
+            }
+          });
+        }
+
+        logServerEvent('info', result.message || 'RBC Security configured successfully');
+        return true;
       } else {
-        // Set NODE_EXTRA_CA_CERTS for Node.js to trust additional CAs
-        process.env.NODE_EXTRA_CA_CERTS = sslConfig.caCertPath;
-        logServerEvent('info', `Using CA certificate: ${sslConfig.caCertPath}`);
+        // rbc_security not available or failed
+        if (result.error === 'rbc_security_not_found') {
+          logServerEvent('info', 'rbc_security not available (OK for local development)');
+          return setupFallbackSSL();
+        } else {
+          logServerEvent('warn', result.message || 'RBC Security setup failed');
+          return setupFallbackSSL();
+        }
       }
+    } catch (execError) {
+      logServerEvent('warn', 'Failed to execute rbc_security setup', {
+        error: execError instanceof Error ? execError.message : String(execError),
+      });
+      return setupFallbackSSL();
     }
-
-    // Configure client certificates
-    if (sslConfig.clientCertPath && sslConfig.clientKeyPath) {
-      if (!fs.existsSync(sslConfig.clientCertPath)) {
-        logServerEvent('warn', `Client certificate not found: ${sslConfig.clientCertPath}`);
-      } else if (!fs.existsSync(sslConfig.clientKeyPath)) {
-        logServerEvent('warn', `Client key not found: ${sslConfig.clientKeyPath}`);
-      } else {
-        logServerEvent('info', `Using client certificate: ${sslConfig.clientCertPath}`);
-        // Note: Client certs need to be passed to fetch/https options
-        // They can't be set globally like CA certs
-      }
-    }
-
-    // Configure TLS rejection behavior
-    if (sslConfig.rejectUnauthorized === false) {
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      logServerEvent('warn', 'SSL certificate verification DISABLED - use only in development!');
-    }
-
-    logServerEvent('info', 'SSL certificates configured successfully');
-    return true;
-
   } catch (error) {
-    logServerEvent('error', 'Failed to configure SSL certificates', {
+    logServerEvent('error', 'Error in RBC Security setup', {
       error: error instanceof Error ? error.message : String(error),
     });
+    return setupFallbackSSL();
+  }
+}
+
+/**
+ * Fallback SSL configuration using environment variables
+ * Used when rbc_security is not available
+ */
+function setupFallbackSSL(): boolean {
+  const sslConfig = loadSSLConfig();
+
+  // Check if any SSL config is provided via env vars
+  if (!sslConfig.caCertPath && !sslConfig.clientCertPath) {
+    logServerEvent('info', 'No SSL certificates configured (using system defaults)');
     return false;
   }
+
+  logServerEvent('info', 'Using fallback SSL configuration from environment variables');
+
+  // Configure CA certificates
+  if (sslConfig.caCertPath) {
+    if (!fs.existsSync(sslConfig.caCertPath)) {
+      logServerEvent('warn', `CA certificate not found: ${sslConfig.caCertPath}`);
+    } else {
+      process.env.NODE_EXTRA_CA_CERTS = sslConfig.caCertPath;
+      logServerEvent('info', `Using CA certificate: ${sslConfig.caCertPath}`);
+    }
+  }
+
+  // Configure client certificates
+  if (sslConfig.clientCertPath && sslConfig.clientKeyPath) {
+    if (!fs.existsSync(sslConfig.clientCertPath)) {
+      logServerEvent('warn', `Client certificate not found: ${sslConfig.clientCertPath}`);
+    } else if (!fs.existsSync(sslConfig.clientKeyPath)) {
+      logServerEvent('warn', `Client key not found: ${sslConfig.clientKeyPath}`);
+    } else {
+      logServerEvent('info', `Using client certificate: ${sslConfig.clientCertPath}`);
+    }
+  }
+
+  // Configure TLS rejection behavior
+  if (sslConfig.rejectUnauthorized === false) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    logServerEvent('warn', 'SSL certificate verification DISABLED - use only in development!');
+  }
+
+  return true;
 }
 
 /**

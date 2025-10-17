@@ -27,9 +27,18 @@ An OpenAI-compatible local proxy server that allows you to use custom LLM endpoi
 
 ### Installation
 
-```bash
-npm install
-```
+1. **Install Node.js dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **For RBC Work Environments - Install rbc_security (Python):**
+   ```bash
+   # On RBC work computers only
+   pip install rbc_security
+   ```
+
+   The proxy will automatically detect and use `rbc_security` if available. If not available (local development), it falls back to system defaults.
 
 ### Development Mode
 
@@ -188,6 +197,22 @@ The proxy is configured using environment variables. See [.env.example](.env.exa
 **Simple API Key:**
 - `TARGET_API_KEY` - Bearer token for target endpoint
 
+#### RBC Security (SSL/TLS Certificates)
+
+The proxy automatically uses Python's `rbc_security` package if installed. This configures SSL certificates for RBC corporate networks.
+
+**Python Method (Recommended for RBC):**
+- Install `pip install rbc_security` on your work computer
+- The proxy automatically detects and uses it via `setup_rbc_security.py`
+- No configuration needed - it just works!
+
+**Manual Method (Fallback):**
+If `rbc_security` is not available, configure manually with:
+- `SSL_CA_CERT_PATH` - Path to CA certificate bundle
+- `SSL_CLIENT_CERT_PATH` - Path to client certificate (optional)
+- `SSL_CLIENT_KEY_PATH` - Path to client key (optional)
+- `NODE_TLS_REJECT_UNAUTHORIZED` - Set to `0` to disable verification (dev only)
+
 ### Testing the Proxy
 
 Run the included test script to validate your configuration:
@@ -328,6 +353,18 @@ If OAuth initialization fails:
 3. Confirm the OAuth server supports client credentials flow
 4. Check if `OAUTH_SCOPE` is required and correct
 5. Review server logs for detailed error messages
+
+### RBC Security Errors
+
+**"rbc_security not available"** (Local Development):
+- This is normal on personal computers
+- The proxy will use fallback SSL configuration or system defaults
+- Only install `rbc_security` on RBC work computers
+
+**Python execution errors:**
+- Ensure Python 3 is installed: `python3 --version`
+- Check `setup_rbc_security.py` exists in project root
+- The proxy will fallback gracefully if Python/script unavailable
 
 ### Response Format Errors
 

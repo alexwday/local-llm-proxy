@@ -1,0 +1,10 @@
+# Python dependencies for RBC Security integration
+#
+# Note: rbc_security is installed separately on RBC work computers
+# It's an internal RBC package not available on PyPI
+#
+# On RBC work computers, install with:
+#   pip install rbc_security
+#
+# This proxy will work without rbc_security (uses fallback SSL config)
+# but for RBC corporate network access, rbc_security is required.
