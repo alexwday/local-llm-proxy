@@ -56,24 +56,30 @@ class RequestHandler:
 
         # Validate required fields
         if not request_data or not request_data.get('model'):
-            return jsonify({
+            error_response = jsonify({
                 "error": {
                     "message": "you must provide a model parameter",
                     "type": "invalid_request_error",
                     "param": "model",
                     "code": None
                 }
-            }), 400
+            })
+            duration_ms = int((time.time() - start_time) * 1000)
+            self.log_manager.log_api_call('POST', '/v1/chat/completions', 400, duration_ms, request_data, None)
+            return error_response, 400
 
         if not request_data.get('messages'):
-            return jsonify({
+            error_response = jsonify({
                 "error": {
                     "message": "you must provide a messages parameter",
                     "type": "invalid_request_error",
                     "param": "messages",
                     "code": None
                 }
-            }), 400
+            })
+            duration_ms = int((time.time() - start_time) * 1000)
+            self.log_manager.log_api_call('POST', '/v1/chat/completions', 400, duration_ms, request_data, None)
+            return error_response, 400
 
         # Check mode
         if self.config.use_placeholder_mode:
@@ -128,21 +134,26 @@ class RequestHandler:
                 except:
                     error_data = {"error": {"message": response.text}}
 
+                self.log_manager.log_api_call('POST', '/v1/chat/completions', response.status_code, duration_ms, request_data, error_data)
                 return jsonify(error_data), response.status_code
 
             response_data = response.json()
+            self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, response_data)
             return jsonify(response_data), 200
 
         except Exception as e:
             logger.error(f"Error forwarding request: {e}")
-            return jsonify({
+            duration_ms = int((time.time() - start_time) * 1000)
+            error_data = {
                 "error": {
                     "message": f"Failed to connect to target endpoint: {str(e)}",
                     "type": "connection_error",
                     "param": None,
                     "code": "target_connection_failed"
                 }
-            }), 500
+            }
+            self.log_manager.log_api_call('POST', '/v1/chat/completions', 500, duration_ms, request_data, error_data)
+            return jsonify(error_data), 500
 
     def _forward_completion_request(self, request_data: Dict, start_time: float):
         """Forward text completion request to target endpoint."""
@@ -232,6 +243,9 @@ class RequestHandler:
                 "total_tokens": 30
             }
         }
+
+        duration_ms = int((time.time() - start_time) * 1000)
+        self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, response)
 
         return jsonify(response), 200
 

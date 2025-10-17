@@ -650,13 +650,13 @@
             document.getElementById('totalRequests').textContent = logs.length;
 
             // Success rate
-            const successCount = logs.filter(log => log.responseStatus < 400).length;
+            const successCount = logs.filter(log => log.status < 400).length;
             const successRate = logs.length > 0 ? Math.round((successCount / logs.length) * 100) : 100;
             document.getElementById('successRate').textContent = successRate + '%';
 
             // Average response time
             if (logs.length > 0) {
-                const avgTime = Math.round(logs.reduce((acc, log) => acc + log.duration, 0) / logs.length);
+                const avgTime = Math.round(logs.reduce((acc, log) => acc + log.duration_ms, 0) / logs.length);
                 document.getElementById('avgResponse').textContent = avgTime + 'ms';
             }
 
@@ -708,8 +708,8 @@
                 updateStats(logs);
 
                 container.innerHTML = logs.map(log => {
-                    const time = new Date(log.timestamp).toLocaleTimeString();
-                    const statusClass = log.responseStatus < 400 ? 'success' : 'error';
+                    const time = new Date(log.timestamp * 1000).toLocaleTimeString();
+                    const statusClass = log.status < 400 ? 'success' : 'error';
 
                     return `
                         <div class="log-entry">
@@ -717,10 +717,10 @@
                                 <span class="log-timestamp">${time}</span>
                                 <span class="badge badge-${log.method.toLowerCase()}">${log.method}</span>
                                 <span class="log-path">${log.path}</span>
-                                <span class="badge badge-${statusClass}">${log.responseStatus}</span>
-                                <span class="log-duration">${log.duration}ms</span>
+                                <span class="badge badge-${statusClass}">${log.status}</span>
+                                <span class="log-duration">${log.duration_ms}ms</span>
                             </div>
-                            ${log.requestBody ? `<div class="log-details">${JSON.stringify(log.requestBody, null, 2)}</div>` : ''}
+                            ${log.request ? `<div class="log-details">${JSON.stringify(log.request, null, 2)}</div>` : ''}
                         </div>
                     `;
                 }).join('');
@@ -747,7 +747,7 @@
                 }
 
                 container.innerHTML = logs.map(log => {
-                    const time = new Date(log.timestamp).toLocaleTimeString();
+                    const time = new Date(log.timestamp * 1000).toLocaleTimeString();
 
                     return `
                         <div class="log-entry">
@@ -756,7 +756,7 @@
                                 <span class="badge badge-${log.level}">${log.level.toUpperCase()}</span>
                                 <span class="log-path">${log.message}</span>
                             </div>
-                            ${log.details ? `<div class="log-details">${JSON.stringify(log.details, null, 2)}</div>` : ''}
+                            ${log.data ? `<div class="log-details">${JSON.stringify(log.data, null, 2)}</div>` : ''}
                         </div>
                     `;
                 }).join('');
