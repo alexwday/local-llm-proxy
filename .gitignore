@@ -54,3 +54,6 @@ ca-bundle.crt
 *.tmp
 *.temp
 .cache/
+__pycache__/
+venv/
+*.pyc
