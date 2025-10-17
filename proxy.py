@@ -253,15 +253,46 @@ def anthropic_messages():
         # Handle messages
         for msg in anthropic_request.get("messages", []):
             content = msg.get("content", "")
-            if isinstance(content, list):
-                # Combine text blocks
-                text_parts = [block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"]
-                content = "\n".join(text_parts)
 
-            # Skip empty messages
-            if not content or (isinstance(content, str) and not content.strip()):
-                logger.warning(f"Skipping empty message with role: {msg.get('role', 'unknown')}")
-                continue
+            if isinstance(content, list):
+                # Process content blocks
+                text_parts = []
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+
+                    block_type = block.get("type", "")
+
+                    # Handle text blocks
+                    if block_type == "text":
+                        text_parts.append(block.get("text", ""))
+
+                    # Handle tool_result blocks (convert to text for OpenAI)
+                    elif block_type == "tool_result":
+                        tool_content = block.get("content", "")
+                        if isinstance(tool_content, str):
+                            text_parts.append(f"[Tool Result] {tool_content}")
+                        elif isinstance(tool_content, list):
+                            # Extract text from nested content blocks
+                            for sub_block in tool_content:
+                                if isinstance(sub_block, dict) and sub_block.get("type") == "text":
+                                    text_parts.append(f"[Tool Result] {sub_block.get('text', '')}")
+
+                    # Handle image blocks (describe for OpenAI)
+                    elif block_type == "image":
+                        text_parts.append("[Image content]")
+
+                    # Handle tool_use blocks (convert to text description)
+                    elif block_type == "tool_use":
+                        tool_name = block.get("name", "unknown")
+                        text_parts.append(f"[Tool Use: {tool_name}]")
+
+                content = "\n".join(text_parts) if text_parts else ""
+
+            # Convert None or empty to placeholder (prevents OpenAI rejection)
+            if content is None or (isinstance(content, str) and not content.strip()):
+                content = "..."
+                logger.debug(f"Using placeholder '...' for empty message with role: {msg.get('role', 'user')}")
 
             messages.append({
                 "role": msg.get("role", "user"),
@@ -274,19 +305,11 @@ def anthropic_messages():
 
         logger.info(f"Model mapping: {incoming_model} → {mapped_model}")
 
-        # Validate we have at least one message
-        if not messages:
-            logger.error("No valid messages after processing")
-            error_response = {
-                "type": "error",
-                "error": {
-                    "type": "invalid_request_error",
-                    "message": "Request contained no valid messages"
-                }
-            }
-            duration_ms = int((time.time() - start_time) * 1000)
-            log_manager.log_api_call('POST', '/v1/messages', 400, duration_ms, anthropic_request, error_response)
-            return jsonify(error_response), 400
+        # Validate we have at least one non-system message
+        non_system_messages = [m for m in messages if m.get("role") != "system"]
+        if not non_system_messages:
+            logger.warning("No non-system messages found, adding placeholder user message")
+            messages.append({"role": "user", "content": "..."})
 
         openai_request = {
             "model": mapped_model,
