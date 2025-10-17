@@ -1,9 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Wrapper script to launch Codex using venv Python (which has toml package)
-
-# Get the directory where this script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Run this from the local-llm-proxy directory
 
 # Activate venv and run launch-codex.py
-source "$SCRIPT_DIR/venv/bin/activate"
-python3 "$SCRIPT_DIR/launch-codex.py"
+source venv/bin/activate
+python3 launch-codex.py
