@@ -190,9 +190,13 @@ class RequestHandler:
                                 # iter_lines() strips newlines, so we add both back
                                 yield chunk + b'\n\n'
 
-                        logger.info(f"Stream complete. Total chunks: {chunk_count}")
+                        logger.info(f"Stream loop ended. Total chunks: {chunk_count}")
                         if chunk_count == 0:
                             logger.warning("No chunks received from target endpoint!")
+
+                        # Explicitly close the response connection
+                        response.close()
+                        logger.info("Response connection closed, stream complete")
                     except GeneratorExit:
                         logger.warning(f"Client disconnected mid-stream. Chunks sent: {chunk_count}")
                     except Exception as e:
@@ -211,7 +215,8 @@ class RequestHandler:
                     content_type='text/event-stream',
                     headers={
                         'Cache-Control': 'no-cache',
-                        'X-Accel-Buffering': 'no'
+                        'X-Accel-Buffering': 'no',
+                        'Connection': 'keep-alive'
                     }
                 ), 200
 
