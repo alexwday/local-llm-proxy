@@ -56,6 +56,7 @@ class Config:
         - Smart detection: Detects "haiku", "sonnet", "opus" in model name
           - "haiku" → DEFAULT_SMALL_MODEL
           - "sonnet" or "opus" → DEFAULT_MODEL
+        - Pass-through: Non-Claude models are returned unchanged
         """
         model_lower = incoming_model.lower()
 
@@ -63,14 +64,15 @@ class Config:
         if incoming_model in self.model_mapping:
             return self.model_mapping[incoming_model]
 
-        # Smart detection based on model family
-        if "haiku" in model_lower:
-            return self.default_small_model
-        elif "sonnet" in model_lower or "opus" in model_lower:
-            return self.default_model
+        # Smart detection for Claude models only
+        if "claude" in model_lower:
+            if "haiku" in model_lower:
+                return self.default_small_model
+            elif "sonnet" in model_lower or "opus" in model_lower:
+                return self.default_model
 
-        # Fallback to default model
-        return self.default_model
+        # Pass through non-Claude models unchanged
+        return incoming_model
 
     def _generate_token(self) -> str:
         """Generate a random access token."""
