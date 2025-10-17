@@ -2,6 +2,7 @@ Flask==3.0.0
 flask-cors==4.0.0
 requests==2.31.0
 python-dotenv==1.0.0
+litellm>=1.50.0
 
 # RBC Security (install on work computers only)
 # pip install rbc_security

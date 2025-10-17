@@ -213,6 +213,124 @@ def completions():
     return request_handler.completions(request.get_json())
 
 
+@app.route('/v1/messages', methods=['POST'])
+def anthropic_messages():
+    """Handle Anthropic Messages API requests (used by Claude Code)."""
+    import litellm
+    start_time = time.time()
+
+    valid, error = verify_access_token()
+    if not valid:
+        return jsonify(error), 401
+
+    # Get Anthropic format request
+    anthropic_request = request.get_json()
+
+    try:
+        # Suppress LiteLLM logging
+        litellm.suppress_debug_info = True
+        litellm.set_verbose = False
+
+        # Translate Anthropic Messages format to OpenAI Chat Completions format
+        # Extract messages and system prompt
+        messages = []
+
+        # Handle system prompt
+        if "system" in anthropic_request:
+            system_content = anthropic_request["system"]
+            if isinstance(system_content, str):
+                messages.append({"role": "system", "content": system_content})
+            elif isinstance(system_content, list):
+                for item in system_content:
+                    if isinstance(item, dict) and "text" in item:
+                        messages.append({"role": "system", "content": item["text"]})
+
+        # Handle messages
+        for msg in anthropic_request.get("messages", []):
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                # Combine text blocks
+                text_parts = [block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"]
+                content = "\n".join(text_parts)
+
+            messages.append({
+                "role": msg.get("role", "user"),
+                "content": content
+            })
+
+        # Build OpenAI request
+        openai_request = {
+            "model": anthropic_request.get("model", config.default_model),
+            "messages": messages
+        }
+
+        # Map optional parameters
+        if "max_tokens" in anthropic_request:
+            openai_request["max_tokens"] = anthropic_request["max_tokens"]
+        if "temperature" in anthropic_request:
+            openai_request["temperature"] = anthropic_request["temperature"]
+        if "top_p" in anthropic_request:
+            openai_request["top_p"] = anthropic_request["top_p"]
+        if "stream" in anthropic_request:
+            openai_request["stream"] = anthropic_request["stream"]
+        if "stop_sequences" in anthropic_request:
+            openai_request["stop"] = anthropic_request["stop_sequences"]
+
+        # Forward to OpenAI-compatible endpoint
+        openai_response, status_code = request_handler.chat_completions(openai_request)
+
+        if status_code != 200:
+            duration_ms = int((time.time() - start_time) * 1000)
+            log_manager.log_api_call('POST', '/v1/messages', status_code, duration_ms, anthropic_request, None)
+            return openai_response, status_code
+
+        # Convert OpenAI response to Anthropic format
+        openai_data = openai_response.get_json()
+
+        choice = openai_data.get("choices", [{}])[0]
+        message_content = choice.get("message", {}).get("content", "")
+
+        # Map finish_reason
+        finish_reason_map = {
+            "stop": "end_turn",
+            "length": "max_tokens",
+            "content_filter": "stop_sequence"
+        }
+        stop_reason = finish_reason_map.get(choice.get("finish_reason", "stop"), "end_turn")
+
+        anthropic_response = {
+            "id": openai_data.get("id", "msg_unknown").replace("chatcmpl-", "msg_"),
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": message_content}],
+            "model": anthropic_request.get("model"),
+            "stop_reason": stop_reason,
+            "usage": {
+                "input_tokens": openai_data.get("usage", {}).get("prompt_tokens", 0),
+                "output_tokens": openai_data.get("usage", {}).get("completion_tokens", 0)
+            }
+        }
+
+        # Log the API call
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_manager.log_api_call('POST', '/v1/messages', 200, duration_ms, anthropic_request, anthropic_response)
+
+        return jsonify(anthropic_response), 200
+
+    except Exception as e:
+        logger.error(f"Error in Anthropic Messages API: {e}")
+        duration_ms = int((time.time() - start_time) * 1000)
+        error_response = {
+            "type": "error",
+            "error": {
+                "type": "api_error",
+                "message": str(e)
+            }
+        }
+        log_manager.log_api_call('POST', '/v1/messages', 500, duration_ms, anthropic_request, error_response)
+        return jsonify(error_response), 500
+
+
 # Dashboard Routes
 @app.route('/')
 def dashboard():
