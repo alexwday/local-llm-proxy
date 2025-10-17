@@ -163,13 +163,22 @@ class RequestHandler:
 
             # Handle streaming responses
             if is_streaming:
+                logger.info("Starting to stream response from target...")
+
                 def generate():
                     try:
+                        chunk_count = 0
                         for chunk in response.iter_lines():
                             if chunk:
+                                chunk_count += 1
+                                if chunk_count == 1:
+                                    logger.info(f"First chunk received: {chunk[:100]}")
                                 yield chunk + b'\n'
+                        logger.info(f"Stream complete. Total chunks: {chunk_count}")
                     except Exception as e:
                         logger.error(f"Error streaming response: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                         # Send error as SSE
                         error_chunk = f'data: {{"error": {{"message": "{str(e)}"}}}}\n\n'
                         yield error_chunk.encode('utf-8')
