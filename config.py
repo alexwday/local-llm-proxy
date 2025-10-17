@@ -48,12 +48,28 @@ class Config:
         return mapping
 
     def map_model_name(self, incoming_model: str) -> str:
-        """Map incoming model name to target model name."""
-        # If there's a specific mapping, use it
+        """
+        Map incoming model name to target model name.
+
+        Supports both exact matches and smart detection:
+        - Exact match: Uses MODEL_MAPPING if model name matches exactly
+        - Smart detection: Detects "haiku", "sonnet", "opus" in model name
+          - "haiku" → DEFAULT_SMALL_MODEL
+          - "sonnet" or "opus" → DEFAULT_MODEL
+        """
+        model_lower = incoming_model.lower()
+
+        # First check for exact mapping
         if incoming_model in self.model_mapping:
             return self.model_mapping[incoming_model]
 
-        # Otherwise use default model
+        # Smart detection based on model family
+        if "haiku" in model_lower:
+            return self.default_small_model
+        elif "sonnet" in model_lower or "opus" in model_lower:
+            return self.default_model
+
+        # Fallback to default model
         return self.default_model
 
     def _generate_token(self) -> str:

@@ -48,6 +48,31 @@ DEFAULT_SMALL_MODEL=custom-gpt3.5
 
 ---
 
+### `MODEL_MAPPING` (Optional)
+**Required:** No (uses smart detection by default)
+**Format:** Comma-separated exact model mappings
+**Purpose:** Override smart detection for specific model names
+
+**Smart Detection (Automatic):**
+The proxy automatically detects Claude model families and maps them:
+- Models containing **"haiku"** → `DEFAULT_SMALL_MODEL`
+- Models containing **"sonnet"** → `DEFAULT_MODEL`
+- Models containing **"opus"** → `DEFAULT_MODEL`
+
+This works for any version without configuration:
+- `claude-3-5-haiku-20241022` → Your small model
+- `claude-3-5-sonnet-20241022` → Your large model
+- `claude-3-opus-20240229` → Your large model
+- Future versions automatically work!
+
+**Example (for special cases only):**
+```bash
+# Only needed if you want to override smart detection
+MODEL_MAPPING=custom-special-model=your-model-1
+```
+
+---
+
 ## Complete Example Configuration
 
 ```bash
@@ -56,11 +81,15 @@ DEFAULT_SMALL_MODEL=custom-gpt3.5
 # Define all available models (returned by /v1/models)
 AVAILABLE_MODELS=rbc-gpt4-advanced,rbc-gpt4-turbo,rbc-gpt35-fast,rbc-llama-70b
 
-# Primary model for main tasks
+# Primary model for main tasks (used for Sonnet/Opus)
 DEFAULT_MODEL=rbc-gpt4-advanced
 
-# Fast model for quick tasks
+# Fast model for quick tasks (used for Haiku)
 DEFAULT_SMALL_MODEL=rbc-gpt35-fast
+
+# Model mapping (optional - smart detection works automatically)
+# Only add this if you need to override smart detection
+# MODEL_MAPPING=
 ```
 
 ---
