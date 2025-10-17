@@ -258,9 +258,14 @@ def anthropic_messages():
                 "content": content
             })
 
-        # Build OpenAI request
+        # Build OpenAI request with model mapping
+        incoming_model = anthropic_request.get("model", config.default_model)
+        mapped_model = config.map_model_name(incoming_model)
+
+        logger.info(f"Model mapping: {incoming_model} → {mapped_model}")
+
         openai_request = {
-            "model": anthropic_request.get("model", config.default_model),
+            "model": mapped_model,
             "messages": messages
         }
 

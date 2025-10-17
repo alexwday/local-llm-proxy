@@ -21,6 +21,7 @@ class Config:
         self.available_models = self._parse_models(os.getenv('AVAILABLE_MODELS', 'gpt-4,gpt-4-turbo,gpt-4o,gpt-4o-mini,gpt-3.5-turbo'))
         self.default_model = os.getenv('DEFAULT_MODEL', 'gpt-4')
         self.default_small_model = os.getenv('DEFAULT_SMALL_MODEL', 'gpt-3.5-turbo')
+        self.model_mapping = self._parse_model_mapping(os.getenv('MODEL_MAPPING', ''))
 
         # OAuth settings
         self.oauth_token_endpoint = os.getenv('OAUTH_TOKEN_ENDPOINT')
@@ -32,6 +33,28 @@ class Config:
     def _parse_models(self, models_str: str) -> list:
         """Parse comma-separated model list from environment."""
         return [m.strip() for m in models_str.split(',') if m.strip()]
+
+    def _parse_model_mapping(self, mapping_str: str) -> dict:
+        """Parse model mapping from environment (format: source=target,source2=target2)."""
+        mapping = {}
+        if not mapping_str:
+            return mapping
+
+        for pair in mapping_str.split(','):
+            if '=' in pair:
+                source, target = pair.split('=', 1)
+                mapping[source.strip()] = target.strip()
+
+        return mapping
+
+    def map_model_name(self, incoming_model: str) -> str:
+        """Map incoming model name to target model name."""
+        # If there's a specific mapping, use it
+        if incoming_model in self.model_mapping:
+            return self.model_mapping[incoming_model]
+
+        # Otherwise use default model
+        return self.default_model
 
     def _generate_token(self) -> str:
         """Generate a random access token."""
