@@ -53,7 +53,7 @@ def check_proxy_running():
     """Check if the proxy server is running."""
     import requests
 
-    proxy_url = f"http://localhost:{os.getenv('LOCAL_PORT', '3000')}"
+    proxy_url = f"http://localhost:{os.getenv('PROXY_PORT', '3000')}"
 
     try:
         response = requests.get(f"{proxy_url}/health", timeout=2)
@@ -74,9 +74,9 @@ def launch_claude_code():
     """Launch Claude Code CLI with proxy configuration."""
 
     # Get configuration from .env
-    proxy_port = os.getenv('LOCAL_PORT', '3000')
+    proxy_port = os.getenv('PROXY_PORT', '3000')
     proxy_token = os.getenv('PROXY_ACCESS_TOKEN')
-    target_model = os.getenv('TARGET_MODEL', 'gpt-4')
+    target_model = os.getenv('DEFAULT_MODEL', 'gpt-4')
 
     if not proxy_token:
         logger.error("PROXY_ACCESS_TOKEN not found in .env file")
@@ -91,7 +91,7 @@ def launch_claude_code():
     env['ANTHROPIC_MODEL'] = target_model
 
     # Optional: Configure additional Claude Code settings
-    env['ANTHROPIC_SMALL_FAST_MODEL'] = os.getenv('TARGET_SMALL_MODEL', 'gpt-3.5-turbo')
+    env['ANTHROPIC_SMALL_FAST_MODEL'] = os.getenv('DEFAULT_SMALL_MODEL', 'gpt-3.5-turbo')
     env['API_TIMEOUT_MS'] = '600000'  # 10 minutes
     env['CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC'] = '1'
     env['DISABLE_TELEMETRY'] = '1'

@@ -13,30 +13,40 @@ logger = logging.getLogger(__name__)
 class RequestHandler:
     """Handles OpenAI API requests and forwards to target endpoint."""
 
-    MODELS = [
-        {"id": "gpt-4", "object": "model", "created": 1687882410, "owned_by": "openai"},
-        {"id": "gpt-4-turbo", "object": "model", "created": 1712361441, "owned_by": "openai"},
-        {"id": "gpt-4o", "object": "model", "created": 1715367049, "owned_by": "openai"},
-        {"id": "gpt-4o-mini", "object": "model", "created": 1721172717, "owned_by": "openai"},
-        {"id": "gpt-3.5-turbo", "object": "model", "created": 1677610602, "owned_by": "openai"},
-    ]
-
     def __init__(self, config, oauth_manager, log_manager, dev_mode=False):
         self.config = config
         self.oauth_manager = oauth_manager
         self.log_manager = log_manager
         self.dev_mode = dev_mode
 
+        # Build models list from config
+        self.models = self._build_models_list()
+
+    def _build_models_list(self):
+        """Build models list from configuration."""
+        models = []
+        base_timestamp = 1687882410  # Base timestamp for model creation
+
+        for i, model_id in enumerate(self.config.available_models):
+            models.append({
+                "id": model_id,
+                "object": "model",
+                "created": base_timestamp + (i * 1000000),  # Increment timestamp for each model
+                "owned_by": "openai"
+            })
+
+        return models
+
     def list_models(self):
         """List available models."""
         return jsonify({
             "object": "list",
-            "data": self.MODELS
+            "data": self.models
         })
 
     def get_model(self, model_id: str):
         """Get specific model details."""
-        model = next((m for m in self.MODELS if m["id"] == model_id), None)
+        model = next((m for m in self.models if m["id"] == model_id), None)
 
         if not model:
             return jsonify({
@@ -228,7 +238,7 @@ class RequestHandler:
             "id": completion_id,
             "object": "chat.completion",
             "created": created,
-            "model": request_data.get("model", "gpt-4"),
+            "model": request_data.get("model", self.config.default_model),
             "choices": [{
                 "index": 0,
                 "message": {
@@ -258,7 +268,7 @@ class RequestHandler:
             "id": completion_id,
             "object": "text_completion",
             "created": created,
-            "model": request_data.get("model", "gpt-3.5-turbo"),
+            "model": request_data.get("model", self.config.default_small_model),
             "choices": [{
                 "text": "This is a placeholder response.",
                 "index": 0,
