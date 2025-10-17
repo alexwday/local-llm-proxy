@@ -711,6 +711,19 @@
                     const time = new Date(log.timestamp * 1000).toLocaleTimeString();
                     const statusClass = log.status < 400 ? 'success' : 'error';
 
+                    let details = '';
+                    if (log.request || log.response) {
+                        details = '<div class="log-details">';
+                        if (log.request) {
+                            details += '<strong>Request:</strong>\n' + JSON.stringify(log.request, null, 2);
+                        }
+                        if (log.response) {
+                            if (log.request) details += '\n\n';
+                            details += '<strong>Response:</strong>\n' + JSON.stringify(log.response, null, 2);
+                        }
+                        details += '</div>';
+                    }
+
                     return `
                         <div class="log-entry">
                             <div class="log-header">
@@ -720,7 +733,7 @@
                                 <span class="badge badge-${statusClass}">${log.status}</span>
                                 <span class="log-duration">${log.duration_ms}ms</span>
                             </div>
-                            ${log.request ? `<div class="log-details">${JSON.stringify(log.request, null, 2)}</div>` : ''}
+                            ${details}
                         </div>
                     `;
                 }).join('');
