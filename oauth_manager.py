@@ -52,23 +52,52 @@ class OAuthManager:
     def _fetch_token(self) -> None:
         """Fetch a new OAuth token."""
         try:
-            logger.debug(f"Fetching OAuth token from {self.token_endpoint}")
+            logger.info(f"Fetching OAuth token from {self.token_endpoint}")
 
             data = {
                 'grant_type': 'client_credentials',
-                'client_id': self.client_id,
-                'client_secret': self.client_secret,
             }
 
             if self.scope:
                 data['scope'] = self.scope
 
+            # Try with Basic Auth first (some OAuth servers prefer this)
+            from requests.auth import HTTPBasicAuth
+            auth = HTTPBasicAuth(self.client_id, self.client_secret)
+
+            logger.debug(f"OAuth request: grant_type=client_credentials, scope={self.scope}")
+
             response = requests.post(
                 self.token_endpoint,
                 data=data,
+                auth=auth,
                 headers={'Content-Type': 'application/x-www-form-urlencoded'},
                 timeout=30
             )
+
+            # If Basic Auth fails with 400, try with credentials in body
+            if response.status_code == 400:
+                logger.warning("Basic Auth failed, trying with credentials in request body...")
+                data['client_id'] = self.client_id
+                data['client_secret'] = self.client_secret
+
+                response = requests.post(
+                    self.token_endpoint,
+                    data=data,
+                    headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                    timeout=30
+                )
+
+            if not response.ok:
+                error_detail = ""
+                try:
+                    error_data = response.json()
+                    error_detail = f": {error_data}"
+                except:
+                    error_detail = f": {response.text}"
+
+                logger.error(f"OAuth token request failed with {response.status_code}{error_detail}")
+                raise Exception(f"OAuth request failed: {response.status_code}{error_detail}")
 
             response.raise_for_status()
             token_data = response.json()
