@@ -148,7 +148,42 @@ def launch_codex():
 
     # Update Codex config.toml to point to our proxy
     logger.info("Updating Codex configuration...")
-    update_codex_config(proxy_port, proxy_token)
+    success = update_codex_config(proxy_port, proxy_token)
+
+    if not success:
+        logger.error("Failed to update Codex config.toml!")
+        logger.error("Please check ~/.codex/config.toml manually")
+        sys.exit(1)
+
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("📝 Verifying Codex configuration...")
+    logger.info("=" * 80)
+
+    # Read and display the config to verify
+    import toml
+    config_path = os.path.expanduser('~/.codex/config.toml')
+    try:
+        with open(config_path, 'r') as f:
+            config = toml.load(f)
+
+        logger.info(f"  model: {config.get('model', 'NOT SET')}")
+        logger.info(f"  model_provider: {config.get('model_provider', 'NOT SET')}")
+
+        if 'model_providers' in config and 'dashboard-proxy' in config['model_providers']:
+            dp = config['model_providers']['dashboard-proxy']
+            logger.info(f"  [model_providers.dashboard-proxy]:")
+            logger.info(f"    name: {dp.get('name', 'NOT SET')}")
+            logger.info(f"    base_url: {dp.get('base_url', 'NOT SET')}")
+            logger.info(f"    wire_api: {dp.get('wire_api', 'NOT SET')}")
+            logger.info(f"    env_key: {dp.get('env_key', 'NOT SET')}")
+        else:
+            logger.error("  ✗ dashboard-proxy provider NOT FOUND in config!")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to read config.toml: {e}")
+        sys.exit(1)
+
     logger.info("")
 
     # Build environment variables for OpenAI Codex CLI
