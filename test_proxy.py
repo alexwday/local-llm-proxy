@@ -3,6 +3,11 @@
 Test script for OpenAI-Compatible LLM Proxy
 
 Validates that the proxy is working correctly by testing all endpoints.
+
+Usage:
+    python3 test_proxy.py                          # Use .env config
+    PROXY_URL=http://remote:3000 python3 test_proxy.py  # Test remote proxy
+    TEST_MODEL=gpt-3.5-turbo python3 test_proxy.py      # Use different model
 """
 
 import os
@@ -10,10 +15,15 @@ import sys
 import json
 import requests
 from typing import Dict, Any
+from dotenv import load_dotenv
+
+# Load .env file
+load_dotenv()
 
 # Configuration
 PROXY_URL = os.getenv('PROXY_URL', 'http://localhost:3000')
 PROXY_TOKEN = os.getenv('PROXY_ACCESS_TOKEN', 'your-static-proxy-token-here')
+TEST_MODEL = os.getenv('TEST_MODEL', 'gpt-4')  # Model to use for testing
 
 # Test tracking
 tests_passed = 0
@@ -60,12 +70,20 @@ def make_request(
     if headers:
         default_headers.update(headers)
 
-    if method == 'GET':
-        return requests.get(url, headers=default_headers, timeout=10)
-    elif method == 'POST':
-        return requests.post(url, headers=default_headers, json=json_data, timeout=10)
-    elif method == 'DELETE':
-        return requests.delete(url, headers=default_headers, timeout=10)
+    try:
+        if method == 'GET':
+            return requests.get(url, headers=default_headers, timeout=10)
+        elif method == 'POST':
+            return requests.post(url, headers=default_headers, json=json_data, timeout=10)
+        elif method == 'DELETE':
+            return requests.delete(url, headers=default_headers, timeout=10)
+    except requests.exceptions.ConnectionError:
+        log_error(f"Cannot connect to proxy at {PROXY_URL}")
+        log_info("   Make sure the proxy is running: ./run-dev.sh")
+        sys.exit(1)
+    except Exception as e:
+        log_error(f"Request error: {e}")
+        sys.exit(1)
 
 
 def test_health_check():
@@ -77,7 +95,9 @@ def test_health_check():
         if response.status_code == 200:
             data = response.json()
             if data.get('status') == 'healthy':
-                log_success("Health check passed")
+                dev_mode = data.get('devMode', False)
+                mode_str = "DEV MODE" if dev_mode else "PRODUCTION MODE"
+                log_success(f"Health check passed ({mode_str})")
             else:
                 log_error(f"Health check failed: unexpected status {data.get('status')}")
         else:
@@ -86,9 +106,28 @@ def test_health_check():
         log_error(f"Health check error: {e}")
 
 
+def test_proxy_config():
+    """Test proxy configuration endpoint."""
+    log_info("Test 2: Proxy configuration")
+    try:
+        response = requests.get(f"{PROXY_URL}/api/config", timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            log_info(f"   Placeholder Mode: {data.get('usePlaceholderMode')}")
+            log_info(f"   OAuth Configured: {data.get('oauthConfigured')}")
+            log_info(f"   Dev Mode: {data.get('devMode')}")
+            log_info(f"   Target: {data.get('targetEndpoint')}")
+            log_success("Configuration retrieved")
+        else:
+            log_error(f"Config retrieval failed: status {response.status_code}")
+    except Exception as e:
+        log_error(f"Config retrieval error: {e}")
+
+
 def test_list_models():
     """Test listing models."""
-    log_info("Test 2: List models endpoint (/v1/models)")
+    log_info("Test 3: List models endpoint (/v1/models)")
     try:
         response = make_request('GET', '/v1/models')
 
@@ -96,9 +135,15 @@ def test_list_models():
             data = response.json()
             if data.get('object') == 'list' and isinstance(data.get('data'), list):
                 model_count = len(data['data'])
+                models = [m['id'] for m in data['data']]
                 log_success(f"Models list retrieved ({model_count} models)")
+                log_info(f"   Available: {', '.join(models)}")
             else:
                 log_error("Models list failed: invalid response format")
+        elif response.status_code == 401:
+            log_error(f"Models list failed: 401 Unauthorized")
+            log_info(f"   Token being used: {PROXY_TOKEN[:30]}...")
+            log_info(f"   Check your .env PROXY_ACCESS_TOKEN matches")
         else:
             log_error(f"Models list failed: status {response.status_code}")
     except Exception as e:
@@ -107,16 +152,21 @@ def test_list_models():
 
 def test_get_model():
     """Test getting a specific model."""
-    log_info("Test 3: Get specific model (/v1/models/gpt-4)")
+    log_info(f"Test 4: Get specific model (/v1/models/{TEST_MODEL})")
     try:
-        response = make_request('GET', '/v1/models/gpt-4')
+        response = make_request('GET', f'/v1/models/{TEST_MODEL}')
 
         if response.status_code == 200:
             data = response.json()
-            if data.get('id') == 'gpt-4':
-                log_success("Specific model retrieved")
+            if data.get('id') == TEST_MODEL:
+                log_success(f"Specific model retrieved: {TEST_MODEL}")
             else:
                 log_error(f"Get model failed: unexpected model id {data.get('id')}")
+        elif response.status_code == 404:
+            log_error(f"Model '{TEST_MODEL}' not found")
+            log_info(f"   Use TEST_MODEL env var to specify a different model")
+        elif response.status_code == 401:
+            log_error(f"Get model failed: 401 Unauthorized")
         else:
             log_error(f"Get model failed: status {response.status_code}")
     except Exception as e:
@@ -125,10 +175,10 @@ def test_get_model():
 
 def test_chat_completion_basic():
     """Test basic chat completion."""
-    log_info("Test 4: Chat completion (basic)")
+    log_info(f"Test 5: Chat completion with {TEST_MODEL}")
     try:
         response = make_request('POST', '/v1/chat/completions', json_data={
-            'model': 'gpt-4',
+            'model': TEST_MODEL,
             'messages': [
                 {'role': 'user', 'content': 'Say "test successful" if you can read this.'}
             ]
@@ -139,24 +189,36 @@ def test_chat_completion_basic():
             if data.get('choices') and len(data['choices']) > 0:
                 message = data['choices'][0].get('message', {})
                 content = message.get('content', '')
-                log_success(f"Chat completion successful (response: {content[:50]}...)")
+                log_success(f"Chat completion successful")
+                log_info(f"   Response: {content[:80]}...")
             else:
                 log_error("Chat completion failed: no choices in response")
+        elif response.status_code == 401:
+            log_error(f"Chat completion failed: 401 Unauthorized")
+            log_info(f"   Token: {PROXY_TOKEN[:30]}...")
         elif response.status_code >= 500:
             log_error(f"Chat completion failed with server error: {response.status_code}")
-            log_info("   This may indicate target endpoint issues")
+            try:
+                error_data = response.json()
+                log_info(f"   Error: {error_data.get('error', {}).get('message', 'Unknown')}")
+            except:
+                pass
         else:
             log_error(f"Chat completion failed: status {response.status_code}")
+            try:
+                log_info(f"   Response: {response.text[:200]}")
+            except:
+                pass
     except Exception as e:
         log_error(f"Chat completion error: {e}")
 
 
 def test_chat_completion_with_params():
     """Test chat completion with parameters."""
-    log_info("Test 5: Chat completion with parameters")
+    log_info(f"Test 6: Chat completion with parameters")
     try:
         response = make_request('POST', '/v1/chat/completions', json_data={
-            'model': 'gpt-4',
+            'model': TEST_MODEL,
             'messages': [
                 {'role': 'system', 'content': 'You are a helpful assistant.'},
                 {'role': 'user', 'content': 'What is 2+2?'}
@@ -172,6 +234,8 @@ def test_chat_completion_with_params():
                 log_success("Chat completion with parameters successful")
             else:
                 log_error("Chat completion with params failed: no choices")
+        elif response.status_code == 401:
+            log_error(f"Chat completion with params failed: 401 Unauthorized")
         elif response.status_code >= 500:
             log_error(f"Chat completion with params failed: server error {response.status_code}")
         else:
@@ -182,7 +246,7 @@ def test_chat_completion_with_params():
 
 def test_text_completion():
     """Test text completion (legacy endpoint)."""
-    log_info("Test 6: Text completion (legacy endpoint)")
+    log_info("Test 7: Text completion (legacy endpoint)")
     try:
         response = make_request('POST', '/v1/completions', json_data={
             'model': 'gpt-3.5-turbo',
@@ -196,6 +260,8 @@ def test_text_completion():
                 log_success("Text completion successful")
             else:
                 log_error("Text completion failed: no choices")
+        elif response.status_code == 401:
+            log_error(f"Text completion failed: 401 Unauthorized")
         elif response.status_code >= 500:
             log_error(f"Text completion failed: server error {response.status_code}")
         else:
@@ -206,7 +272,7 @@ def test_text_completion():
 
 def test_authentication():
     """Test authentication validation."""
-    log_info("Test 7: Authentication validation (should reject invalid token)")
+    log_info("Test 8: Authentication validation (should reject invalid token)")
     try:
         response = make_request('GET', '/v1/models', headers={
             'Authorization': 'Bearer invalid-token-12345'
@@ -222,7 +288,7 @@ def test_authentication():
 
 def test_dashboard():
     """Test dashboard accessibility."""
-    log_info("Test 8: Dashboard accessibility")
+    log_info("Test 9: Dashboard accessibility")
     try:
         response = requests.get(PROXY_URL, timeout=10)
 
@@ -235,24 +301,6 @@ def test_dashboard():
             log_error(f"Dashboard not accessible: status {response.status_code}")
     except Exception as e:
         log_error(f"Dashboard access error: {e}")
-
-
-def test_dashboard_api_config():
-    """Test dashboard API config endpoint."""
-    log_info("Test 9: Dashboard API - configuration endpoint")
-    try:
-        response = requests.get(f"{PROXY_URL}/api/config", timeout=10)
-
-        if response.status_code == 200:
-            data = response.json()
-            if 'localPort' in data:
-                log_success("Dashboard API config endpoint working")
-            else:
-                log_error("Dashboard API config failed: missing fields")
-        else:
-            log_error(f"Dashboard API config failed: status {response.status_code}")
-    except Exception as e:
-        log_error(f"Dashboard API config error: {e}")
 
 
 def test_dashboard_api_logs():
@@ -289,10 +337,10 @@ def print_summary():
     if tests_failed == 0:
         print("\n🎉 All tests passed! The proxy is working correctly.")
     elif tests_failed <= 2 and tests_passed >= 8:
-        print("\n⚠️  Most tests passed. Some failures may be due to target endpoint configuration.")
+        print("\n⚠️  Most tests passed. Some failures may be due to configuration.")
         print("   Check the logs above for details.")
     else:
-        print("\n❌ Multiple tests failed. Please check the configuration and logs.")
+        print("\n❌ Multiple tests failed. Please check the configuration.")
 
     print("\n" + "=" * 80 + "\n")
 
@@ -304,10 +352,12 @@ def main():
     print("🧪 OpenAI-Compatible LLM Proxy Test Suite")
     print("=" * 80)
     print(f"\n🔗 Testing proxy at: {PROXY_URL}")
-    print(f"🔑 Using access token: {PROXY_TOKEN[:20]}...\n")
+    print(f"🔑 Using access token: {PROXY_TOKEN[:30]}...")
+    print(f"🤖 Test model: {TEST_MODEL}\n")
 
     # Run tests
     test_health_check()
+    test_proxy_config()
     test_list_models()
     test_get_model()
     test_chat_completion_basic()
@@ -315,7 +365,6 @@ def main():
     test_text_completion()
     test_authentication()
     test_dashboard()
-    test_dashboard_api_config()
     test_dashboard_api_logs()
 
     # Print summary

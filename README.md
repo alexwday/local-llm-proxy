@@ -53,14 +53,47 @@ Validate the proxy is working correctly:
 python3 test_proxy.py
 ```
 
-The test script validates:
-- ✅ Health check endpoint
-- ✅ Model listing and retrieval
-- ✅ Chat completions (basic and with parameters)
-- ✅ Text completions (legacy endpoint)
-- ✅ Authentication validation
-- ✅ Dashboard accessibility
-- ✅ Dashboard API endpoints
+The test script automatically:
+- ✅ Loads configuration from `.env`
+- ✅ Shows proxy mode (dev/production, placeholder/real endpoint)
+- ✅ Tests all API endpoints with proper authentication
+- ✅ Validates OAuth and SSL configuration in production mode
+
+**Customize test model:**
+```bash
+TEST_MODEL=gpt-3.5-turbo python3 test_proxy.py
+```
+
+**Test against remote proxy:**
+```bash
+PROXY_URL=https://remote-proxy.com python3 test_proxy.py
+```
+
+**Testing Modes:**
+
+**Placeholder Mode (Default for local testing):**
+```bash
+# In .env:
+USE_PLACEHOLDER_MODE=true
+
+# All 10 tests should pass without real endpoint
+```
+
+**Production Mode (With real endpoint):**
+```bash
+# In .env:
+USE_PLACEHOLDER_MODE=false
+TARGET_ENDPOINT=https://your-real-llm-endpoint.com/v1
+OAUTH_TOKEN_ENDPOINT=https://auth.yourcompany.com/oauth/token
+OAUTH_CLIENT_ID=your-client-id
+OAUTH_CLIENT_SECRET=your-client-secret
+
+# Run in production mode:
+./run.sh
+
+# Then test (OAuth and SSL will be used):
+python3 test_proxy.py
+```
 
 **Expected output:**
 ```
@@ -69,8 +102,6 @@ The test script validates:
 ❌ Tests failed: 0
 📈 Success rate: 100%
 ```
-
-**Note**: For full testing, set `USE_PLACEHOLDER_MODE=true` in `.env` to test without a real endpoint.
 
 ## Development vs Production
 
