@@ -5,6 +5,8 @@ A production-ready Python proxy server that forwards OpenAI API requests to cust
 ## Features
 
 - **100% OpenAI API v1 Compatible** - Works with official OpenAI clients and tools
+- **Anthropic Messages API Support** - Compatible with Claude Code CLI
+- **Smart Model Mapping** - Automatically maps Claude models to your custom models
 - **OAuth 2.0 Token Management** - Automatic token refresh with configurable buffer
 - **RBC Security Integration** - Direct integration with `rbc_security` Python package
 - **Development Mode** - Bypasses OAuth and rbc_security for local testing
@@ -44,7 +46,34 @@ OAUTH_CLIENT_SECRET=your-client-secret
 ./run.sh
 ```
 
-### 4. Test
+### 4. Use with Claude Code
+
+Launch Claude Code CLI through the proxy:
+
+```bash
+# In terminal 1: Start the proxy
+./run-dev.sh  # or ./run.sh for production
+
+# In terminal 2: Launch Claude Code
+python3 launch-claude.py
+```
+
+Claude Code will now route all requests through your proxy. Check the dashboard at `http://localhost:3000` to see requests in real-time.
+
+**Using from other project directories:**
+```bash
+# From any project directory
+python3 /path/to/local-llm-proxy/launch-claude.py
+
+# Or add an alias to your shell config (~/.bashrc, ~/.zshrc):
+alias claude-proxy="python3 ~/Projects/local-llm-proxy/launch-claude.py"
+
+# Then from anywhere:
+cd ~/my-project
+claude-proxy
+```
+
+### 5. Test
 
 Validate the proxy is working correctly:
 
@@ -104,6 +133,25 @@ python3 test_proxy.py
 📈 Success rate: 100%
 ```
 
+## Model Configuration
+
+The proxy supports smart model mapping for Claude Code compatibility:
+
+```bash
+# In .env file
+DEFAULT_MODEL=your-big-model           # Used for Sonnet and Opus
+DEFAULT_SMALL_MODEL=your-small-model   # Used for Haiku
+```
+
+**Automatic mapping (version-independent):**
+- `claude-3-5-haiku-*` → `DEFAULT_SMALL_MODEL`
+- `claude-3-5-sonnet-*` → `DEFAULT_MODEL`
+- `claude-3-opus-*` → `DEFAULT_MODEL`
+
+No configuration updates needed when new Claude versions are released!
+
+See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed configuration options.
+
 ## Development vs Production
 
 ### Development Mode
@@ -111,7 +159,7 @@ python3 test_proxy.py
 - rbc_security: Disabled
 - Use case: Local testing
 
-### Production Mode  
+### Production Mode
 - OAuth: Required (auto-refresh)
 - rbc_security: Required (SSL setup)
 - Use case: RBC work environment
@@ -131,10 +179,46 @@ python3 test_proxy.py
    pip install rbc_security
    ```
 
-3. Configure `.env` and run:
+3. Configure `.env` with your models and OAuth settings:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. Run the proxy:
    ```bash
    ./run.sh
    ```
+
+5. Launch Claude Code (from any directory):
+   ```bash
+   python3 launch-claude.py
+   ```
+
+## API Endpoints
+
+### OpenAI-Compatible Endpoints
+- `GET /v1/models` - List available models
+- `GET /v1/models/{model_id}` - Get model details
+- `POST /v1/chat/completions` - Chat completions (OpenAI format)
+- `POST /v1/completions` - Text completions (OpenAI format)
+
+### Anthropic-Compatible Endpoints
+- `POST /v1/messages` - Messages API (Claude Code format)
+
+### Dashboard & Monitoring
+- `GET /` - Web dashboard
+- `GET /api/config` - Proxy configuration
+- `GET /api/logs` - All logs
+- `GET /api/logs/api-calls` - API call history
+- `GET /api/logs/server-events` - Server events
+- `GET /health` - Health check
+
+## Documentation
+
+- [Model Configuration Guide](MODEL_CONFIGURATION.md) - Detailed model configuration
+- [Anthropic API Notes](ANTHROPIC_API_NOTES.md) - Anthropic API implementation details
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 
 ## License
 
