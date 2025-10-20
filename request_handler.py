@@ -229,6 +229,16 @@ class RequestHandler:
                                             total_tokens = usage.get('total_tokens', 0)
                                             logger.info(f"[CHUNK {chunk_count}] Usage: prompt={prompt_tokens}, completion={comp_tokens}, total={total_tokens}")
 
+                                            # Check if prompt exceeds gateway's 256k input limit
+                                            if prompt_tokens > 256000:
+                                                logger.error(f"[CHUNK {chunk_count}] !!! PROMPT EXCEEDS GATEWAY LIMIT !!!")
+                                                logger.error(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} > 256,000 limit")
+                                                logger.error(f"[CHUNK {chunk_count}] This likely caused the request to fail or truncate")
+                                            elif prompt_tokens > 230000:
+                                                logger.warning(f"[CHUNK {chunk_count}] !!! PROMPT APPROACHING LIMIT !!!")
+                                                logger.warning(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} (limit is 256,000)")
+                                                logger.warning(f"[CHUNK {chunk_count}] Little room left for completion output")
+
                                             # Check for suspiciously short responses
                                             if comp_tokens < 10:
                                                 logger.warning(f"[CHUNK {chunk_count}] !!! SHORT RESPONSE: {comp_tokens} completion tokens !!!")
