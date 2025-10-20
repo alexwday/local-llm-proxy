@@ -139,7 +139,13 @@ class RequestHandler:
             # Check if streaming is requested
             is_streaming = request_data.get('stream', False)
 
+            # Log request details for debugging
+            num_messages = len(request_data.get('messages', []))
+            max_tokens = request_data.get('max_tokens', 'not set')
+            model = request_data.get('model', 'not set')
+
             logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
+            logger.info(f"Request details: model={model}, messages={num_messages}, max_tokens={max_tokens}")
 
             # For streaming, use longer timeout and keep connection alive
             if is_streaming:
@@ -218,12 +224,16 @@ class RequestHandler:
                                         # Log usage if present (shows token count)
                                         if 'usage' in chunk_json:
                                             usage = chunk_json['usage']
-                                            logger.info(f"[CHUNK {chunk_count}] Usage tokens: {usage}")
-                                            # Check for suspiciously short responses
+                                            prompt_tokens = usage.get('prompt_tokens', 0)
                                             comp_tokens = usage.get('completion_tokens', 0)
+                                            total_tokens = usage.get('total_tokens', 0)
+                                            logger.info(f"[CHUNK {chunk_count}] Usage: prompt={prompt_tokens}, completion={comp_tokens}, total={total_tokens}")
+
+                                            # Check for suspiciously short responses
                                             if comp_tokens < 10:
                                                 logger.warning(f"[CHUNK {chunk_count}] !!! SHORT RESPONSE: {comp_tokens} completion tokens !!!")
                                                 logger.warning(f"[CHUNK {chunk_count}] Response text: '{full_response_text}'")
+                                                logger.warning(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} (check if context too large)")
                                                 logger.warning(f"[CHUNK {chunk_count}] Full chunk: {chunk}")
                                 except Exception as parse_error:
                                     # Log parsing errors instead of silently ignoring
