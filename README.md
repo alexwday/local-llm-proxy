@@ -4,9 +4,7 @@ A production-ready Python proxy server that forwards OpenAI API requests to cust
 
 ## Features
 
-- **100% OpenAI API v1 Compatible** - Works with official OpenAI clients and tools
-- **Anthropic Messages API Support** - Compatible with Claude Code CLI
-- **Smart Model Mapping** - Automatically maps Claude models to your custom models
+- **100% OpenAI API v1 Compatible** - Works with official OpenAI clients and tools (including OpenAI Codex CLI)
 - **OAuth 2.0 Token Management** - Automatic token refresh with configurable buffer
 - **RBC Security Integration** - Direct integration with `rbc_security` Python package
 - **Development Mode** - Bypasses OAuth and rbc_security for local testing
@@ -46,38 +44,9 @@ OAUTH_CLIENT_SECRET=your-client-secret
 ./run.sh
 ```
 
-### 4. Use with AI Coding Assistants
+### 4. Use with OpenAI Codex CLI
 
-#### Claude Code CLI
-
-Launch Claude Code CLI through the proxy:
-
-```bash
-# In terminal 1: Start the proxy
-./run-dev.sh  # or ./run.sh for production
-
-# In terminal 2: Launch Claude Code
-python3 launch-claude.py
-```
-
-Claude Code will now route all requests through your proxy. Check the dashboard at `http://localhost:3000` to see requests in real-time.
-
-**Using from other project directories:**
-```bash
-# From any project directory
-python3 /path/to/local-llm-proxy/launch-claude.py
-
-# Or add an alias to your shell config (~/.bashrc, ~/.zshrc):
-alias claude-proxy="python3 ~/Projects/local-llm-proxy/launch-claude.py"
-
-# Then from anywhere:
-cd ~/my-project
-claude-proxy
-```
-
-#### OpenAI Codex CLI
-
-Launch OpenAI Codex CLI through the proxy (uses OpenAI format natively - no format conversion needed):
+Launch OpenAI Codex CLI through the proxy:
 
 ```bash
 # In terminal 1: Start the proxy
@@ -101,11 +70,6 @@ alias codex-proxy="~/Projects/local-llm-proxy/launch-codex.sh"
 cd ~/my-project
 codex-proxy
 ```
-
-**Key differences from Claude Code:**
-- OpenAI Codex CLI uses OpenAI format natively (no Anthropic format conversion)
-- Requests go directly to `/v1/chat/completions` endpoint
-- Works seamlessly with custom models without litellm reformatting
 
 **Installation:**
 ```bash
@@ -175,22 +139,13 @@ python3 test_proxy.py
 
 ## Model Configuration
 
-The proxy supports smart model mapping for Claude Code compatibility:
+Configure your target models in `.env`:
 
 ```bash
 # In .env file
-DEFAULT_MODEL=your-big-model           # Used for Sonnet and Opus
-DEFAULT_SMALL_MODEL=your-small-model   # Used for Haiku
+DEFAULT_MODEL=your-model-name           # Default model for requests
+AVAILABLE_MODELS=model1,model2,model3  # Comma-separated list of available models
 ```
-
-**Automatic mapping (version-independent):**
-- `claude-3-5-haiku-*` → `DEFAULT_SMALL_MODEL`
-- `claude-3-5-sonnet-*` → `DEFAULT_MODEL`
-- `claude-3-opus-*` → `DEFAULT_MODEL`
-
-No configuration updates needed when new Claude versions are released!
-
-See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed configuration options.
 
 ## Development vs Production
 
@@ -230,9 +185,9 @@ See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed configuration 
    ./run.sh
    ```
 
-5. Launch Claude Code (from any directory):
+5. Launch OpenAI Codex CLI (from any directory):
    ```bash
-   python3 launch-claude.py
+   ./launch-codex.sh
    ```
 
 ## API Endpoints
@@ -242,9 +197,6 @@ See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed configuration 
 - `GET /v1/models/{model_id}` - Get model details
 - `POST /v1/chat/completions` - Chat completions (OpenAI format)
 - `POST /v1/completions` - Text completions (OpenAI format)
-
-### Anthropic-Compatible Endpoints
-- `POST /v1/messages` - Messages API (Claude Code format)
 
 ### Dashboard & Monitoring
 - `GET /` - Web dashboard
@@ -256,8 +208,6 @@ See [MODEL_CONFIGURATION.md](MODEL_CONFIGURATION.md) for detailed configuration 
 
 ## Documentation
 
-- [Model Configuration Guide](MODEL_CONFIGURATION.md) - Detailed model configuration
-- [Anthropic API Notes](ANTHROPIC_API_NOTES.md) - Anthropic API implementation details
 - [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
 
 ## License

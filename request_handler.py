@@ -144,6 +144,17 @@ class RequestHandler:
             num_messages = len(messages)
             max_tokens_req = request_data.get('max_tokens', 'not set')
             model = request_data.get('model', 'not set')
+            tools = request_data.get('tools', [])
+            tool_choice = request_data.get('tool_choice', 'not set')
+
+            # Check messages for tool_calls and tool results
+            has_assistant_tool_calls = False
+            has_tool_results = False
+            for msg in messages:
+                if msg.get('role') == 'assistant' and 'tool_calls' in msg:
+                    has_assistant_tool_calls = True
+                if msg.get('role') == 'tool':
+                    has_tool_results = True
 
             # Estimate prompt size (rough approximation: 1 token ≈ 4 chars)
             total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
@@ -151,6 +162,20 @@ class RequestHandler:
 
             logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
             logger.info(f"Request details: model={model}, messages={num_messages}, max_tokens={max_tokens_req}")
+            if tools:
+                logger.info(f"Tools defined: {len(tools)} tools")
+                logger.info(f"Tool choice: {tool_choice}")
+                for i, tool in enumerate(tools):
+                    tool_name = tool.get('function', {}).get('name', 'unknown')
+                    logger.info(f"  Tool {i+1}: {tool_name}")
+            else:
+                logger.info(f"Tools: None (no tools defined in request)")
+
+            if has_assistant_tool_calls:
+                logger.info(f"Message history includes assistant tool_calls (from previous turn)")
+            if has_tool_results:
+                logger.info(f"Message history includes tool results (role='tool')")
+
             logger.info(f"Estimated prompt size: ~{estimated_prompt_tokens:,} tokens ({total_chars:,} chars)")
 
             # Warn if max_tokens not set
@@ -193,6 +218,7 @@ class RequestHandler:
                         chunk_count = 0
                         full_response_text = ""
                         actual_prompt_tokens = None  # Will be set when usage arrives
+                        accumulated_tool_calls = {}  # Track tool calls by index
                         for chunk in response.iter_lines():
                             if chunk:
                                 chunk_count += 1
@@ -217,7 +243,31 @@ class RequestHandler:
                                             if 'tool_calls' in delta:
                                                 logger.info(f"[CHUNK {chunk_count}] tool_calls found in delta")
                                                 if delta['tool_calls'] and len(delta['tool_calls']) > 0:
-                                                    logger.info(f"[CHUNK {chunk_count}] Tool call with data: {delta['tool_calls']}")
+                                                    # Accumulate tool call data
+                                                    for tc_delta in delta['tool_calls']:
+                                                        tc_index = tc_delta.get('index', 0)
+                                                        if tc_index not in accumulated_tool_calls:
+                                                            accumulated_tool_calls[tc_index] = {
+                                                                'id': tc_delta.get('id', ''),
+                                                                'type': tc_delta.get('type', 'function'),
+                                                                'function': {
+                                                                    'name': '',
+                                                                    'arguments': ''
+                                                                }
+                                                            }
+
+                                                        # Update accumulated data
+                                                        if 'id' in tc_delta:
+                                                            accumulated_tool_calls[tc_index]['id'] = tc_delta['id']
+                                                        if 'type' in tc_delta:
+                                                            accumulated_tool_calls[tc_index]['type'] = tc_delta['type']
+                                                        if 'function' in tc_delta:
+                                                            if 'name' in tc_delta['function']:
+                                                                accumulated_tool_calls[tc_index]['function']['name'] = tc_delta['function']['name']
+                                                            if 'arguments' in tc_delta['function']:
+                                                                accumulated_tool_calls[tc_index]['function']['arguments'] += tc_delta['function']['arguments']
+
+                                                    logger.info(f"[CHUNK {chunk_count}] Tool call delta: {delta['tool_calls']}")
                                                 else:
                                                     logger.info(f"[CHUNK {chunk_count}] Empty tool_calls array")
 
@@ -230,8 +280,16 @@ class RequestHandler:
                                                     logger.warning(f"[CHUNK {chunk_count}] Codex SHOULD execute tool call now")
                                                     logger.warning(f"[CHUNK {chunk_count}] Full choice object: {json.dumps(choice, indent=2)}")
                                                 elif finish_reason == 'length':
-                                                    logger.warning(f"[CHUNK {chunk_count}] !!! FINISH_REASON='length' - Response truncated !!!")
-                                                    logger.warning(f"[CHUNK {chunk_count}] Response so far: '{full_response_text}'")
+                                                    logger.error(f"[CHUNK {chunk_count}] !!! FINISH_REASON='length' - Response TRUNCATED !!!")
+                                                    logger.error(f"[CHUNK {chunk_count}] Response text so far: '{full_response_text}'")
+                                                    logger.error(f"[CHUNK {chunk_count}] max_tokens sent in request: {max_tokens_req}")
+                                                    logger.error(f"[CHUNK {chunk_count}] This likely means:")
+                                                    logger.error(f"[CHUNK {chunk_count}]   1. Backend ignored max_tokens={max_tokens_req}")
+                                                    logger.error(f"[CHUNK {chunk_count}]   2. Backend has lower limit than requested")
+                                                    logger.error(f"[CHUNK {chunk_count}]   3. Context size too large (prompt + completion > limit)")
+                                                    if accumulated_tool_calls:
+                                                        logger.error(f"[CHUNK {chunk_count}] Tool calls were in progress - likely INCOMPLETE!")
+                                                        logger.error(f"[CHUNK {chunk_count}] Partial tool calls: {list(accumulated_tool_calls.keys())}")
 
                                         # Log usage if present (shows token count)
                                         if 'usage' in chunk_json:
@@ -280,6 +338,16 @@ class RequestHandler:
                         logger.info(f"Full response text: {full_response_text}")
                         logger.info(f"Response text length: {len(full_response_text)} chars")
 
+                        # Log accumulated tool calls
+                        if accumulated_tool_calls:
+                            logger.info(f"========== ACCUMULATED TOOL CALLS ==========")
+                            for idx, tc in accumulated_tool_calls.items():
+                                func_name = tc.get('function', {}).get('name', 'unknown')
+                                func_args = tc.get('function', {}).get('arguments', '')
+                                logger.info(f"Tool Call {idx}: {func_name}")
+                                logger.info(f"  Arguments: {func_args[:200]}..." if len(func_args) > 200 else f"  Arguments: {func_args}")
+                            logger.info(f"============================================")
+
                         if chunk_count == 0:
                             logger.warning("No chunks received from target endpoint!")
 
@@ -325,6 +393,26 @@ class RequestHandler:
                 }
                 self.log_manager.log_api_call('POST', '/v1/chat/completions', 500, duration_ms, request_data, error_data)
                 return jsonify(error_data), 500
+
+            # Log non-streaming response details
+            if 'choices' in response_data and len(response_data['choices']) > 0:
+                choice = response_data['choices'][0]
+                message = choice.get('message', {})
+                finish_reason = choice.get('finish_reason', 'unknown')
+
+                logger.info(f"Non-streaming response received: finish_reason={finish_reason}")
+
+                if 'tool_calls' in message:
+                    tool_calls = message['tool_calls']
+                    logger.info(f"!!! TOOL_CALLS in response: {len(tool_calls)} calls")
+                    for tc in tool_calls:
+                        func_name = tc.get('function', {}).get('name', 'unknown')
+                        logger.info(f"  - Tool call: {func_name}")
+
+                if 'content' in message:
+                    content = message.get('content', '')
+                    if content:
+                        logger.info(f"Response content: {content[:100]}..." if len(content) > 100 else f"Response content: {content}")
 
             self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, response_data)
             return jsonify(response_data), 200
