@@ -122,13 +122,13 @@ def update_codex_config(proxy_port: str, proxy_token: str, model: str):
             config['model'] = model
             config['model_provider'] = 'dashboard-proxy'
             # Set high max_tokens for long responses (Codex needs this for multi-step tasks)
-            config['max_tokens'] = 16000
+            config['max_tokens'] = 32768
 
             # Update base_url
             config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
             logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
             logger.info(f"✓ Updated model to: {model}")
-            logger.info(f"✓ Updated max_tokens to: 16000 (for long multi-step tasks)")
+            logger.info(f"✓ Updated max_tokens to: 32768 (for long multi-step tasks)")
             logger.info(f"✓ Fixed config structure (model settings at root level)")
         else:
             logger.warning("dashboard-proxy provider NOT found in existing config!")
@@ -145,9 +145,9 @@ def update_codex_config(proxy_port: str, proxy_token: str, model: str):
             # Set root level settings
             config['model'] = model
             config['model_provider'] = 'dashboard-proxy'
-            config['max_tokens'] = 16000
+            config['max_tokens'] = 32768
 
-            logger.info(f"✓ Created dashboard-proxy provider with model: {model} (max_tokens: 16000)")
+            logger.info(f"✓ Created dashboard-proxy provider with model: {model} (max_tokens: 32768)")
 
         # Also update any other custom providers
         for provider_name, provider_config in config.get('model_providers', {}).items():
