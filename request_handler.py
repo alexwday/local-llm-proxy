@@ -140,12 +140,23 @@ class RequestHandler:
             is_streaming = request_data.get('stream', False)
 
             # Log request details for debugging
-            num_messages = len(request_data.get('messages', []))
-            max_tokens = request_data.get('max_tokens', 'not set')
+            messages = request_data.get('messages', [])
+            num_messages = len(messages)
+            max_tokens_req = request_data.get('max_tokens', 'not set')
             model = request_data.get('model', 'not set')
 
+            # Estimate prompt size (rough approximation: 1 token ≈ 4 chars)
+            total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
+            estimated_prompt_tokens = total_chars // 4
+
             logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
-            logger.info(f"Request details: model={model}, messages={num_messages}, max_tokens={max_tokens}")
+            logger.info(f"Request details: model={model}, messages={num_messages}, max_tokens={max_tokens_req}")
+            logger.info(f"Estimated prompt size: ~{estimated_prompt_tokens:,} tokens ({total_chars:,} chars)")
+
+            # Warn if max_tokens not set
+            if max_tokens_req == 'not set':
+                logger.warning("!!! max_tokens NOT SET in request - gateway may use low default !!!")
+                logger.warning("Codex config should set max_tokens (check ~/.codex/config.toml)")
 
             # For streaming, use longer timeout and keep connection alive
             if is_streaming:
@@ -181,6 +192,7 @@ class RequestHandler:
                     try:
                         chunk_count = 0
                         full_response_text = ""
+                        actual_prompt_tokens = None  # Will be set when usage arrives
                         for chunk in response.iter_lines():
                             if chunk:
                                 chunk_count += 1
@@ -227,7 +239,14 @@ class RequestHandler:
                                             prompt_tokens = usage.get('prompt_tokens', 0)
                                             comp_tokens = usage.get('completion_tokens', 0)
                                             total_tokens = usage.get('total_tokens', 0)
-                                            logger.info(f"[CHUNK {chunk_count}] Usage: prompt={prompt_tokens}, completion={comp_tokens}, total={total_tokens}")
+                                            actual_prompt_tokens = prompt_tokens  # Save for later comparison
+
+                                            logger.info(f"[CHUNK {chunk_count}] ========== TOKEN USAGE ==========")
+                                            logger.info(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens:,}")
+                                            logger.info(f"[CHUNK {chunk_count}] Completion tokens: {comp_tokens:,}")
+                                            logger.info(f"[CHUNK {chunk_count}] Total tokens: {total_tokens:,}")
+                                            logger.info(f"[CHUNK {chunk_count}] Estimated vs Actual: ~{estimated_prompt_tokens:,} → {prompt_tokens:,}")
+                                            logger.info(f"[CHUNK {chunk_count}] =================================")
 
                                             # Check if prompt exceeds gateway's 256k input limit
                                             if prompt_tokens > 256000:
