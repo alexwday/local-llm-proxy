@@ -5,12 +5,7 @@ Launch OpenAI Codex CLI with proxy configuration.
 This script:
 1. Enables RBC Security SSL certificates
 2. Configures OpenAI Codex CLI to use the local proxy
-3. Launches Codex CLI with custom endpoint using OpenAI native format
-
-Key difference from launch-claude.py:
-- OpenAI Codex CLI uses OpenAI format natively (not Anthropic format)
-- Requests go to /v1/chat/completions endpoint directly
-- No need for format conversion - bypasses Anthropic formatting in proxy
+3. Launches Codex CLI with custom endpoint
 
 Prerequisites:
 - The proxy server must be running (./run.sh or ./run-dev.sh)
@@ -257,8 +252,7 @@ def launch_codex():
     logger.info("🔄 OpenAI Codex CLI configuration:")
     logger.info("   → Custom provider config.toml updated to use proxy")
     logger.info("   → Launching with: --config model_provider=dashboard-proxy")
-    logger.info("   → Requests sent to /v1/chat/completions (OpenAI format)")
-    logger.info("   → No format conversion needed - bypasses Anthropic formatting")
+    logger.info("   → Requests sent to /v1/chat/completions")
     logger.info("   → Works directly with your custom models")
     logger.info("")
     logger.info("💡 Note: Using explicit --config flags to force provider selection")

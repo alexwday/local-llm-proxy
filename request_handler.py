@@ -105,13 +105,11 @@ class RequestHandler:
             return error_response, 400
 
         # Check mode
-        logger.info(f"Placeholder mode: {self.config.use_placeholder_mode}")
         if self.config.use_placeholder_mode:
-            logger.info("Using placeholder response")
+            logger.debug("Using placeholder response")
             return self._placeholder_chat_response(request_data, start_time)
 
         # Forward to target
-        logger.info("Forwarding to target endpoint")
         return self._forward_chat_request(request_data, start_time)
 
     def completions(self, request_data: Dict):
@@ -166,23 +164,23 @@ class RequestHandler:
             total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
             estimated_prompt_tokens = total_chars // 4
 
-            logger.info(f"Forwarding request to: {target_url} (streaming: {is_streaming})")
-            logger.info(f"Request details: model={model}, messages={num_messages}, max_tokens={max_tokens_req}")
+            # Concise INFO logging for production
+            tool_info = f", tools={len(tools)}" if tools else ""
+            logger.info(f"→ {model} | msgs={num_messages}, max_tokens={max_tokens_req}{tool_info} | streaming={is_streaming}")
+
+            # Detailed DEBUG logging
             if tools:
-                logger.info(f"Tools defined: {len(tools)} tools")
-                logger.info(f"Tool choice: {tool_choice}")
+                logger.debug(f"Tools: {len(tools)} defined, choice={tool_choice}")
                 for i, tool in enumerate(tools):
                     tool_name = tool.get('function', {}).get('name', 'unknown')
-                    logger.info(f"  Tool {i+1}: {tool_name}")
-            else:
-                logger.info(f"Tools: None (no tools defined in request)")
+                    logger.debug(f"  Tool {i+1}: {tool_name}")
 
             if has_assistant_tool_calls:
-                logger.info(f"Message history includes assistant tool_calls (from previous turn)")
+                logger.debug(f"Message history includes assistant tool_calls")
             if has_tool_results:
-                logger.info(f"Message history includes tool results (role='tool')")
+                logger.debug(f"Message history includes tool results")
 
-            logger.info(f"Estimated prompt size: ~{estimated_prompt_tokens:,} tokens ({total_chars:,} chars)")
+            logger.debug(f"Estimated prompt size: ~{estimated_prompt_tokens:,} tokens")
 
             # Warn if max_tokens not set
             if max_tokens_req == 'not set':
@@ -217,7 +215,7 @@ class RequestHandler:
 
             # Handle streaming responses
             if is_streaming:
-                logger.info("Starting to stream response from target...")
+                logger.debug("Starting to stream response from target...")
 
                 def generate():
                     try:
@@ -229,9 +227,9 @@ class RequestHandler:
                             if chunk:
                                 chunk_count += 1
                                 if chunk_count == 1:
-                                    logger.info(f"First chunk received: {chunk[:100]}")
-                                elif chunk_count % 10 == 0:
-                                    logger.info(f"Received {chunk_count} chunks so far...")
+                                    logger.debug(f"First chunk received: {chunk[:100]}")
+                                elif chunk_count % 50 == 0:
+                                    logger.debug(f"Received {chunk_count} chunks so far...")
 
                                 # Try to extract content from chunk for debugging
                                 try:
@@ -247,7 +245,7 @@ class RequestHandler:
 
                                             # Check for tool calls (including empty arrays)
                                             if 'tool_calls' in delta:
-                                                logger.info(f"[CHUNK {chunk_count}] tool_calls found in delta")
+                                                logger.debug(f"[CHUNK {chunk_count}] tool_calls in delta")
                                                 if delta['tool_calls'] and len(delta['tool_calls']) > 0:
                                                     # Accumulate tool call data
                                                     for tc_delta in delta['tool_calls']:
@@ -273,99 +271,68 @@ class RequestHandler:
                                                             if 'arguments' in tc_delta['function']:
                                                                 accumulated_tool_calls[tc_index]['function']['arguments'] += tc_delta['function']['arguments']
 
-                                                    logger.info(f"[CHUNK {chunk_count}] Tool call delta: {delta['tool_calls']}")
-                                                else:
-                                                    logger.info(f"[CHUNK {chunk_count}] Empty tool_calls array")
+                                                    logger.debug(f"[CHUNK {chunk_count}] Tool call data: {delta['tool_calls']}")
 
-                                            # Check finish_reason - THIS IS THE KEY CHECK
+                                            # Check finish_reason
                                             finish_reason = choice.get('finish_reason')
                                             if finish_reason:
-                                                logger.info(f"[CHUNK {chunk_count}] *** FINISH_REASON: {finish_reason} ***")
+                                                logger.info(f"← finish_reason={finish_reason}")
                                                 if finish_reason == 'tool_calls':
-                                                    logger.warning(f"[CHUNK {chunk_count}] !!! FINISH_REASON='tool_calls' DETECTED !!!")
-                                                    logger.warning(f"[CHUNK {chunk_count}] Codex SHOULD execute tool call now")
-                                                    logger.warning(f"[CHUNK {chunk_count}] Full choice object: {json.dumps(choice, indent=2)}")
-                                                elif finish_reason == 'length':
-                                                    logger.error(f"[CHUNK {chunk_count}] !!! FINISH_REASON='length' - Response TRUNCATED !!!")
-                                                    logger.error(f"[CHUNK {chunk_count}] Response text so far: '{full_response_text}'")
-                                                    logger.error(f"[CHUNK {chunk_count}] max_tokens sent in request: {max_tokens_req}")
-                                                    logger.error(f"[CHUNK {chunk_count}] This likely means:")
-                                                    logger.error(f"[CHUNK {chunk_count}]   1. Backend ignored max_tokens={max_tokens_req}")
-                                                    logger.error(f"[CHUNK {chunk_count}]   2. Backend has lower limit than requested")
-                                                    logger.error(f"[CHUNK {chunk_count}]   3. Context size too large (prompt + completion > limit)")
                                                     if accumulated_tool_calls:
-                                                        logger.error(f"[CHUNK {chunk_count}] Tool calls were in progress - likely INCOMPLETE!")
-                                                        logger.error(f"[CHUNK {chunk_count}] Partial tool calls: {list(accumulated_tool_calls.keys())}")
+                                                        tool_names = [tc.get('function', {}).get('name', '?') for tc in accumulated_tool_calls.values()]
+                                                        logger.info(f"  Tool calls: {', '.join(tool_names)}")
+                                                    logger.debug(f"Full choice: {json.dumps(choice, indent=2)}")
+                                                elif finish_reason == 'length':
+                                                    logger.error(f"Response TRUNCATED (finish_reason=length, max_tokens={max_tokens_req})")
+                                                    if accumulated_tool_calls:
+                                                        logger.error(f"  Incomplete tool calls detected!")
+                                                    logger.debug(f"Response so far: {full_response_text[:200]}")
 
-                                        # Log usage if present (shows token count)
+                                        # Log usage if present
                                         if 'usage' in chunk_json:
                                             usage = chunk_json['usage']
                                             prompt_tokens = usage.get('prompt_tokens', 0)
                                             comp_tokens = usage.get('completion_tokens', 0)
                                             total_tokens = usage.get('total_tokens', 0)
-                                            actual_prompt_tokens = prompt_tokens  # Save for later comparison
+                                            actual_prompt_tokens = prompt_tokens
 
-                                            logger.info(f"[CHUNK {chunk_count}] ========== TOKEN USAGE ==========")
-                                            logger.info(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens:,}")
-                                            logger.info(f"[CHUNK {chunk_count}] Completion tokens: {comp_tokens:,}")
-                                            logger.info(f"[CHUNK {chunk_count}] Total tokens: {total_tokens:,}")
-                                            logger.info(f"[CHUNK {chunk_count}] Estimated vs Actual: ~{estimated_prompt_tokens:,} → {prompt_tokens:,}")
-                                            logger.info(f"[CHUNK {chunk_count}] =================================")
+                                            logger.info(f"  Usage: {prompt_tokens:,} prompt + {comp_tokens:,} completion = {total_tokens:,} tokens")
 
-                                            # Check if prompt exceeds gateway's 256k input limit
+                                            # Check for potential issues
                                             if prompt_tokens > 256000:
-                                                logger.error(f"[CHUNK {chunk_count}] !!! PROMPT EXCEEDS GATEWAY LIMIT !!!")
-                                                logger.error(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} > 256,000 limit")
-                                                logger.error(f"[CHUNK {chunk_count}] This likely caused the request to fail or truncate")
+                                                logger.error(f"Prompt exceeds 256k limit: {prompt_tokens:,} tokens")
                                             elif prompt_tokens > 230000:
-                                                logger.warning(f"[CHUNK {chunk_count}] !!! PROMPT APPROACHING LIMIT !!!")
-                                                logger.warning(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} (limit is 256,000)")
-                                                logger.warning(f"[CHUNK {chunk_count}] Little room left for completion output")
+                                                logger.warning(f"Prompt approaching limit: {prompt_tokens:,}/256k tokens")
 
-                                            # Check for suspiciously short responses
-                                            if comp_tokens < 10:
-                                                logger.warning(f"[CHUNK {chunk_count}] !!! SHORT RESPONSE: {comp_tokens} completion tokens !!!")
-                                                logger.warning(f"[CHUNK {chunk_count}] Response text: '{full_response_text}'")
-                                                logger.warning(f"[CHUNK {chunk_count}] Prompt tokens: {prompt_tokens} (check if context too large)")
-                                                logger.warning(f"[CHUNK {chunk_count}] Full chunk: {chunk}")
+                                            if comp_tokens < 10 and not accumulated_tool_calls:
+                                                logger.warning(f"Suspiciously short response: {comp_tokens} tokens")
                                 except Exception as parse_error:
                                     # Log parsing errors instead of silently ignoring
                                     logger.debug(f"[CHUNK {chunk_count}] Could not parse chunk: {parse_error}")
-
-                                # Check if this is the [DONE] marker
-                                if b'[DONE]' in chunk:
-                                    logger.info(f"Received [DONE] marker at chunk {chunk_count}")
 
                                 # SSE format requires \n\n after each event
                                 # iter_lines() strips newlines, so we add both back
                                 yield chunk + b'\n\n'
 
-                        logger.info(f"Stream loop ended. Total chunks: {chunk_count}")
-                        logger.info(f"Full response text: {full_response_text}")
-                        logger.info(f"Response text length: {len(full_response_text)} chars")
+                        logger.debug(f"Stream complete: {chunk_count} chunks, {len(full_response_text)} chars")
 
-                        # Log accumulated tool calls
+                        # Log accumulated tool calls at DEBUG level
                         if accumulated_tool_calls:
-                            logger.info(f"========== ACCUMULATED TOOL CALLS ==========")
+                            logger.debug(f"Accumulated {len(accumulated_tool_calls)} tool calls")
                             for idx, tc in accumulated_tool_calls.items():
                                 func_name = tc.get('function', {}).get('name', 'unknown')
                                 func_args = tc.get('function', {}).get('arguments', '')
-                                logger.info(f"Tool Call {idx}: {func_name}")
-                                logger.info(f"  Arguments: {func_args[:200]}..." if len(func_args) > 200 else f"  Arguments: {func_args}")
-                            logger.info(f"============================================")
+                                logger.debug(f"  [{idx}] {func_name}: {func_args[:100]}")
 
                         if chunk_count == 0:
-                            logger.warning("No chunks received from target endpoint!")
+                            logger.warning("No chunks received from target!")
 
-                        # Explicitly close the response connection
                         response.close()
-                        logger.info("Response connection closed, stream complete")
                     except GeneratorExit:
-                        logger.warning(f"Client disconnected mid-stream. Chunks sent: {chunk_count}")
+                        logger.warning(f"Client disconnected ({chunk_count} chunks sent)")
                     except Exception as e:
-                        logger.error(f"Error streaming response at chunk {chunk_count}: {e}")
-                        import traceback
-                        logger.error(traceback.format_exc())
+                        logger.error(f"Streaming error: {e}")
+                        logger.debug(f"Traceback:", exc_info=True)
                         # Send error as SSE
                         error_chunk = f'data: {{"error": {{"message": "{str(e)}"}}}}\n\n'
                         yield error_chunk.encode('utf-8')
@@ -400,25 +367,22 @@ class RequestHandler:
                 self.log_manager.log_api_call('POST', '/v1/chat/completions', 500, duration_ms, request_data, error_data)
                 return jsonify(error_data), 500
 
-            # Log non-streaming response details
+            # Log non-streaming response
             if 'choices' in response_data and len(response_data['choices']) > 0:
                 choice = response_data['choices'][0]
                 message = choice.get('message', {})
                 finish_reason = choice.get('finish_reason', 'unknown')
 
-                logger.info(f"Non-streaming response received: finish_reason={finish_reason}")
+                logger.info(f"← finish_reason={finish_reason}")
 
                 if 'tool_calls' in message:
                     tool_calls = message['tool_calls']
-                    logger.info(f"!!! TOOL_CALLS in response: {len(tool_calls)} calls")
-                    for tc in tool_calls:
-                        func_name = tc.get('function', {}).get('name', 'unknown')
-                        logger.info(f"  - Tool call: {func_name}")
+                    tool_names = [tc.get('function', {}).get('name', '?') for tc in tool_calls]
+                    logger.info(f"  Tool calls: {', '.join(tool_names)}")
 
-                if 'content' in message:
-                    content = message.get('content', '')
-                    if content:
-                        logger.info(f"Response content: {content[:100]}..." if len(content) > 100 else f"Response content: {content}")
+                if 'content' in message and message.get('content'):
+                    content = message['content']
+                    logger.debug(f"Content: {content[:100]}")
 
             self.log_manager.log_api_call('POST', '/v1/chat/completions', 200, duration_ms, request_data, response_data)
             return jsonify(response_data), 200
