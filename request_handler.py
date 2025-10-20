@@ -195,14 +195,19 @@ class RequestHandler:
                                             if content:
                                                 full_response_text += content
 
-                                            # Check for tool calls
+                                            # Check for tool calls (including empty arrays)
                                             if 'tool_calls' in delta:
-                                                logger.info(f"Tool call detected in chunk {chunk_count}: {delta['tool_calls']}")
+                                                if delta['tool_calls'] and len(delta['tool_calls']) > 0:
+                                                    logger.info(f"Tool call detected in chunk {chunk_count}: {delta['tool_calls']}")
+                                                else:
+                                                    logger.info(f"Empty tool_calls array in chunk {chunk_count}")
 
                                             # Check finish_reason
                                             finish_reason = choice.get('finish_reason')
                                             if finish_reason:
                                                 logger.info(f"Finish reason at chunk {chunk_count}: {finish_reason}")
+                                                if finish_reason == 'tool_calls':
+                                                    logger.warning(f"!!! FINISH_REASON IS 'tool_calls' - Codex should execute tool !!!")
 
                                         # Log usage if present (shows token count)
                                         if 'usage' in chunk_json:
@@ -211,8 +216,9 @@ class RequestHandler:
                                             # Check for 4-token responses
                                             if usage.get('completion_tokens') == 4:
                                                 logger.warning(f"!!! 4-TOKEN RESPONSE DETECTED !!!")
-                                                logger.warning(f"Full chunk: {chunk[:500]}")  # Limit to 500 chars
-                                                logger.warning(f"Response text so far: '{full_response_text}'")
+                                                logger.warning(f"Full chunk (untruncated): {chunk}")
+                                                logger.warning(f"Response text accumulated: '{full_response_text}'")
+                                                logger.warning(f"Parsed chunk JSON: {json.dumps(chunk_json, indent=2)}")
                                 except:
                                     pass  # Ignore parsing errors
 
