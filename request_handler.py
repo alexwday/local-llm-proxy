@@ -71,6 +71,12 @@ class RequestHandler:
                 logger.info(f"Removing temperature=0 (STRIP_ZERO_TEMPERATURE=true)")
                 request_data.pop('temperature', None)
 
+        # Inject max_tokens if not set (Codex doesn't send it, causing truncation)
+        if request_data and 'max_tokens' not in request_data:
+            default_max_tokens = self.config.max_tokens
+            request_data['max_tokens'] = default_max_tokens
+            logger.info(f"Injected max_tokens={default_max_tokens} (not set by client)")
+
         # Validate required fields
         if not request_data or not request_data.get('model'):
             error_response = jsonify({

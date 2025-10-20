@@ -24,6 +24,9 @@ class Config:
         self.default_small_model = os.getenv('DEFAULT_SMALL_MODEL', 'gpt-3.5-turbo')
         self.model_mapping = self._parse_model_mapping(os.getenv('MODEL_MAPPING', ''))
 
+        # Token limits - inject this if client doesn't specify max_tokens
+        self.max_tokens = int(os.getenv('MAX_TOKENS', '32768'))
+
         # OAuth settings
         self.oauth_token_endpoint = os.getenv('OAUTH_TOKEN_ENDPOINT')
         self.oauth_client_id = os.getenv('OAUTH_CLIENT_ID')
