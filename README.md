@@ -89,6 +89,19 @@ Launch OpenAI Codex CLI through the proxy (uses OpenAI format natively - no form
 
 **Note:** Use `launch-codex.sh` (not `launch-codex.py`) to ensure the venv Python with required packages is used.
 
+**Using from other project directories:**
+```bash
+# From any project directory
+~/Projects/local-llm-proxy/launch-codex.sh
+
+# Or add an alias to your shell config (~/.bashrc, ~/.zshrc):
+alias codex-proxy="~/Projects/local-llm-proxy/launch-codex.sh"
+
+# Then from anywhere:
+cd ~/my-project
+codex-proxy
+```
+
 **Key differences from Claude Code:**
 - OpenAI Codex CLI uses OpenAI format natively (no Anthropic format conversion)
 - Requests go directly to `/v1/chat/completions` endpoint
