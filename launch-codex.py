@@ -76,7 +76,7 @@ def check_proxy_running():
     return False
 
 
-def update_codex_config(proxy_port: str, proxy_token: str, model: str):
+def update_codex_config(proxy_port: str, proxy_token: str, model: str, max_tokens: int):
     """Update Codex config.toml to point to the proxy."""
     import toml
 
@@ -121,14 +121,14 @@ def update_codex_config(proxy_port: str, proxy_token: str, model: str):
             # Update root level settings with correct values from .env
             config['model'] = model
             config['model_provider'] = 'dashboard-proxy'
-            # Set high max_tokens for long responses (Codex needs this for multi-step tasks)
-            config['max_tokens'] = 32768
+            # Set max_tokens for long responses (Codex needs this for multi-step tasks)
+            config['max_tokens'] = max_tokens
 
             # Update base_url
             config['model_providers']['dashboard-proxy']['base_url'] = f'http://localhost:{proxy_port}/v1'
             logger.info(f"✓ Updated dashboard-proxy base_url to http://localhost:{proxy_port}/v1")
             logger.info(f"✓ Updated model to: {model}")
-            logger.info(f"✓ Updated max_tokens to: 32768 (for long multi-step tasks)")
+            logger.info(f"✓ Updated max_tokens to: {max_tokens} (from .env)")
             logger.info(f"✓ Fixed config structure (model settings at root level)")
         else:
             logger.warning("dashboard-proxy provider NOT found in existing config!")
@@ -145,9 +145,9 @@ def update_codex_config(proxy_port: str, proxy_token: str, model: str):
             # Set root level settings
             config['model'] = model
             config['model_provider'] = 'dashboard-proxy'
-            config['max_tokens'] = 32768
+            config['max_tokens'] = max_tokens
 
-            logger.info(f"✓ Created dashboard-proxy provider with model: {model} (max_tokens: 32768)")
+            logger.info(f"✓ Created dashboard-proxy provider with model: {model} (max_tokens: {max_tokens})")
 
         # Also update any other custom providers
         for provider_name, provider_config in config.get('model_providers', {}).items():
@@ -180,6 +180,7 @@ def launch_codex():
     proxy_port = os.getenv('PROXY_PORT', '3000')
     proxy_token = os.getenv('PROXY_ACCESS_TOKEN')
     target_model = os.getenv('DEFAULT_MODEL', 'gpt-4')
+    max_tokens = int(os.getenv('MAX_TOKENS', '32768'))
 
     if not proxy_token:
         logger.error("PROXY_ACCESS_TOKEN not found in .env file")
@@ -187,7 +188,7 @@ def launch_codex():
 
     # Update Codex config.toml to point to our proxy
     logger.info("Updating Codex configuration...")
-    success = update_codex_config(proxy_port, proxy_token, target_model)
+    success = update_codex_config(proxy_port, proxy_token, target_model, max_tokens)
 
     if not success:
         logger.error("Failed to update Codex config.toml!")
