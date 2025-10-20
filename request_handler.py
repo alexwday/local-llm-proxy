@@ -197,30 +197,37 @@ class RequestHandler:
 
                                             # Check for tool calls (including empty arrays)
                                             if 'tool_calls' in delta:
+                                                logger.info(f"[CHUNK {chunk_count}] tool_calls found in delta")
                                                 if delta['tool_calls'] and len(delta['tool_calls']) > 0:
-                                                    logger.info(f"Tool call detected in chunk {chunk_count}: {delta['tool_calls']}")
+                                                    logger.info(f"[CHUNK {chunk_count}] Tool call with data: {delta['tool_calls']}")
                                                 else:
-                                                    logger.info(f"Empty tool_calls array in chunk {chunk_count}")
+                                                    logger.info(f"[CHUNK {chunk_count}] Empty tool_calls array")
 
-                                            # Check finish_reason
+                                            # Check finish_reason - THIS IS THE KEY CHECK
                                             finish_reason = choice.get('finish_reason')
                                             if finish_reason:
-                                                logger.info(f"Finish reason at chunk {chunk_count}: {finish_reason}")
+                                                logger.info(f"[CHUNK {chunk_count}] *** FINISH_REASON: {finish_reason} ***")
                                                 if finish_reason == 'tool_calls':
-                                                    logger.warning(f"!!! FINISH_REASON IS 'tool_calls' - Codex should execute tool !!!")
+                                                    logger.warning(f"[CHUNK {chunk_count}] !!! FINISH_REASON='tool_calls' DETECTED !!!")
+                                                    logger.warning(f"[CHUNK {chunk_count}] Codex SHOULD execute tool call now")
+                                                    logger.warning(f"[CHUNK {chunk_count}] Full choice object: {json.dumps(choice, indent=2)}")
+                                                elif finish_reason == 'length':
+                                                    logger.warning(f"[CHUNK {chunk_count}] !!! FINISH_REASON='length' - Response truncated !!!")
+                                                    logger.warning(f"[CHUNK {chunk_count}] Response so far: '{full_response_text}'")
 
                                         # Log usage if present (shows token count)
                                         if 'usage' in chunk_json:
                                             usage = chunk_json['usage']
-                                            logger.info(f"Usage tokens at chunk {chunk_count}: {usage}")
-                                            # Check for 4-token responses
-                                            if usage.get('completion_tokens') == 4:
-                                                logger.warning(f"!!! 4-TOKEN RESPONSE DETECTED !!!")
-                                                logger.warning(f"Full chunk (untruncated): {chunk}")
-                                                logger.warning(f"Response text accumulated: '{full_response_text}'")
-                                                logger.warning(f"Parsed chunk JSON: {json.dumps(chunk_json, indent=2)}")
-                                except:
-                                    pass  # Ignore parsing errors
+                                            logger.info(f"[CHUNK {chunk_count}] Usage tokens: {usage}")
+                                            # Check for suspiciously short responses
+                                            comp_tokens = usage.get('completion_tokens', 0)
+                                            if comp_tokens < 10:
+                                                logger.warning(f"[CHUNK {chunk_count}] !!! SHORT RESPONSE: {comp_tokens} completion tokens !!!")
+                                                logger.warning(f"[CHUNK {chunk_count}] Response text: '{full_response_text}'")
+                                                logger.warning(f"[CHUNK {chunk_count}] Full chunk: {chunk}")
+                                except Exception as parse_error:
+                                    # Log parsing errors instead of silently ignoring
+                                    logger.debug(f"[CHUNK {chunk_count}] Could not parse chunk: {parse_error}")
 
                                 # Check if this is the [DONE] marker
                                 if b'[DONE]' in chunk:
