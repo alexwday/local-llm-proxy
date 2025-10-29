@@ -20,16 +20,16 @@ duckduckgo-search<6.0
 
 # All required langchain packages (gpt-researcher needs these but doesn't auto-install)
 # NOTE: Using older langchain 0.x because gpt-researcher 0.14.4 uses deprecated imports
-# All packages pinned to 0.3.x for compatibility
-langchain==0.3.27
-langchain-core==0.3.79
-langchain-community==0.3.17
-langchain-openai==0.3.7
-langchain-ollama==0.3.3
-langchain-text-splitters==0.3.11
-langgraph==0.2.76
-langgraph-checkpoint==2.0.26
-langsmith==0.3.42
+# All packages constrained to compatible 0.3.x versions
+langchain>=0.3.0,<0.4.0
+langchain-core>=0.3.0,<0.4.0
+langchain-community>=0.3.0,<0.4.0
+langchain-openai>=0.3.0,<0.4.0
+langchain-ollama>=0.3.0,<0.4.0
+langchain-text-splitters>=0.3.0,<0.4.0
+langgraph>=0.2.0,<0.3.0
+langgraph-checkpoint>=2.0.0,<3.0.0
+langsmith>=0.3.40,<0.4.0
 
 # Other required packages
 fastapi>=0.104.0
