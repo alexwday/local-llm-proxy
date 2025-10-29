@@ -13,11 +13,21 @@ pydantic>=2.0.0
 # GPT Researcher (autonomous research agent)
 # Note: Has 100+ dependencies, first install may take 5-10 minutes
 gpt-researcher==0.14.4
-langchain>=0.3.0  # Core langchain package
-langchain-community>=0.3.0  # Community integrations (includes docstore)
-langgraph>=0.2.0  # LangGraph for agent orchestration
-fastapi>=0.104.0  # Required by gpt-researcher
-uvicorn>=0.24.0   # Required by gpt-researcher
+
+# All required langchain packages (gpt-researcher needs these but doesn't auto-install)
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-openai>=0.3.0
+langchain-ollama>=0.3.0
+langchain-text-splitters>=0.3.0
+langgraph>=0.2.0
+langgraph-checkpoint>=2.0.0
+langsmith>=0.3.0
+
+# Other required packages
+fastapi>=0.104.0
+uvicorn>=0.24.0
 
 # RBC Security (install on work computers only)
 # pip install rbc_security
