@@ -5,6 +5,7 @@ A production-ready Python proxy server that forwards OpenAI API requests to cust
 ## Features
 
 - **100% OpenAI API v1 Compatible** - Works with official OpenAI clients and tools (including OpenAI Codex CLI)
+- **GPT Researcher Integration** - Autonomous research agent with DuckDuckGo search (no API keys!)
 - **Interactive Web Scraping Agent** - LLM-powered web scraping with Crawl4AI (structured extraction, multi-page crawling)
 - **OAuth 2.0 Token Management** - Automatic token refresh with configurable buffer
 - **RBC Security Integration** - Direct integration with `rbc_security` Python package
@@ -119,6 +120,63 @@ scraper> exit
 - 📊 **Dashboard Integration** - All LLM requests logged to proxy dashboard
 
 All LLM-powered extractions automatically use your configured proxy endpoint and model!
+
+### 4c. Use with GPT Researcher (Autonomous Research Agent)
+
+Launch GPT Researcher for comprehensive web research with automatic source aggregation:
+
+```bash
+# In terminal 1: Start the proxy
+./run-dev.sh  # or ./run.sh for production
+
+# In terminal 2: Run a research query
+./launch-researcher.sh "What are the latest AI agent frameworks?"
+
+# Or use interactive mode
+./launch-researcher.sh --interactive
+```
+
+**First-time setup:**
+```bash
+# Install GPT Researcher (already cloned in gpt-researcher-lib/)
+cd gpt-researcher-lib
+pip install -e .
+cd ..
+```
+
+**Features:**
+- 🔍 **Autonomous Research** - Searches 20+ sources automatically
+- 🤖 **DuckDuckGo Search** - No search API key required
+- 📄 **Comprehensive Reports** - Generates detailed research reports with citations
+- 🌐 **Multi-source Aggregation** - Scrapes and synthesizes information from multiple websites
+- 💾 **Auto-save** - Reports saved to `research_output/` as Markdown files
+- 📊 **Dashboard Integration** - All LLM requests logged to proxy dashboard
+
+**How it works:**
+1. GPT Researcher breaks down your query into research questions
+2. Searches DuckDuckGo for relevant sources (no API key!)
+3. Scrapes and analyzes content from each source
+4. Uses your proxy's LLM to synthesize findings
+5. Generates a comprehensive report with citations
+
+**Example queries:**
+```bash
+./launch-researcher.sh "Compare LangChain vs LangGraph for AI agents"
+./launch-researcher.sh "How does RAG improve LLM accuracy?"
+./launch-researcher.sh "Latest developments in web scraping with AI"
+```
+
+**Interactive mode:**
+```bash
+./launch-researcher.sh --interactive
+
+🔍 Research Query: What are the best practices for prompt engineering?
+# GPT Researcher searches, scrapes, and generates comprehensive report
+
+🔍 Research Query: exit
+```
+
+All research uses your local proxy - no OpenAI account needed!
 
 ### 5. Test
 

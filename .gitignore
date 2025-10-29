@@ -57,3 +57,10 @@ ca-bundle.crt
 __pycache__/
 venv/
 *.pyc
+
+# Output directories
+research_output/
+scraper_output/
+
+# Cloned repositories (external dependencies)
+gpt-researcher-lib/
