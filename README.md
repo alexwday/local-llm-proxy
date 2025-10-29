@@ -5,6 +5,7 @@ A production-ready Python proxy server that forwards OpenAI API requests to cust
 ## Features
 
 - **100% OpenAI API v1 Compatible** - Works with official OpenAI clients and tools (including OpenAI Codex CLI)
+- **Interactive Web Scraping Agent** - LLM-powered web scraping with Crawl4AI (structured extraction, multi-page crawling)
 - **OAuth 2.0 Token Management** - Automatic token refresh with configurable buffer
 - **RBC Security Integration** - Direct integration with `rbc_security` Python package
 - **Development Mode** - Bypasses OAuth and rbc_security for local testing
@@ -76,6 +77,48 @@ codex-proxy
 npm install -g @openai/codex
 # Or use npx: npx @openai/codex
 ```
+
+### 4b. Use with Web Scraping Agent (Crawl4AI)
+
+Launch the interactive web scraping agent that uses your proxy for LLM-powered extraction:
+
+```bash
+# In terminal 1: Start the proxy
+./run-dev.sh  # or ./run.sh for production
+
+# In terminal 2: Launch the scraping agent
+./launch-scraper.sh
+```
+
+**First-time setup:**
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Install Playwright browsers (required for crawling)
+playwright install
+```
+
+**Interactive Commands:**
+```bash
+scraper> scrape https://example.com
+scraper> scrape https://news.ycombinator.com --llm "Extract the top 5 article titles"
+scraper> extract https://example.com {"title":"str","price":"float"}
+scraper> crawl https://docs.example.com --depth 2 --max 10
+scraper> save output.json
+scraper> help
+scraper> exit
+```
+
+**Features:**
+- 🔍 **Single Page Scraping** - Extract clean markdown from any webpage
+- 🤖 **LLM-Powered Extraction** - Use natural language prompts to extract specific content
+- 🎯 **Structured Data** - Define schemas to extract structured JSON data
+- 🕷️ **Multi-Page Crawling** - Follow links and crawl entire documentation sites
+- 💾 **Export Results** - Save as JSON, Markdown, or text
+- 📊 **Dashboard Integration** - All LLM requests logged to proxy dashboard
+
+All LLM-powered extractions automatically use your configured proxy endpoint and model!
 
 ### 5. Test
 

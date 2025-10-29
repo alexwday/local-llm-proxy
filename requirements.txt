@@ -5,5 +5,10 @@ python-dotenv==1.0.0
 litellm>=1.50.0
 toml==0.10.2
 
+# Web scraping with Crawl4AI
+crawl4ai>=0.7.6
+playwright>=1.40.0
+pydantic>=2.0.0
+
 # RBC Security (install on work computers only)
 # pip install rbc_security
