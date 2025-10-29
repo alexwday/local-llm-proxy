@@ -105,7 +105,7 @@ async def run_research(query: str):
     """Run a research query using GPT Researcher."""
     try:
         from gpt_researcher import GPTResearcher
-
+        logger.info("✓ GPT Researcher imported successfully")
         logger.info("")
         logger.info("=" * 80)
         logger.info(f"🔍 Research Query: {query}")
@@ -157,12 +157,17 @@ async def run_research(query: str):
 
         return final_report
 
-    except ImportError:
+    except ImportError as e:
         logger.error("✗ GPT Researcher not installed")
+        logger.error(f"   Import error: {e}")
         logger.error("")
-        logger.error("Please install GPT Researcher:")
-        logger.error("  cd gpt-researcher-lib")
-        logger.error("  pip install -e .")
+        logger.error("Please install dependencies:")
+        logger.error("  source venv/bin/activate")
+        logger.error("  pip install -r requirements.txt")
+        logger.error("")
+        logger.error("Or check which Python is being used:")
+        logger.error(f"  Current Python: {sys.executable}")
+        logger.error(f"  Run: {sys.executable} -m pip list | grep gpt-researcher")
         logger.error("")
         sys.exit(1)
     except Exception as e:
