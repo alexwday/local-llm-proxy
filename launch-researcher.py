@@ -129,6 +129,24 @@ def setup_researcher_config():
     os.environ['SMART_LLM'] = f'openai:{target_model}'  # Main research model
     os.environ['FAST_LLM'] = f'openai:{target_model}'   # Fast task model
 
+    # Configure corporate proxy for DuckDuckGo search (if needed)
+    # Set these in .env if you're behind a corporate proxy:
+    #   CORPORATE_HTTP_PROXY=http://proxy.company.com:8080
+    #   CORPORATE_HTTPS_PROXY=http://proxy.company.com:8080
+    if os.getenv('CORPORATE_HTTP_PROXY'):
+        os.environ['HTTP_PROXY'] = os.getenv('CORPORATE_HTTP_PROXY')
+        logger.info(f"  HTTP Proxy: {os.environ['HTTP_PROXY']}")
+    if os.getenv('CORPORATE_HTTPS_PROXY'):
+        os.environ['HTTPS_PROXY'] = os.getenv('CORPORATE_HTTPS_PROXY')
+        logger.info(f"  HTTPS Proxy: {os.environ['HTTPS_PROXY']}")
+
+    # Disable SSL verification for DuckDuckGo if behind corporate proxy
+    # Only use this if you trust your corporate network
+    if os.getenv('DISABLE_SSL_VERIFY', 'false').lower() == 'true':
+        os.environ['CURL_CA_BUNDLE'] = ''
+        os.environ['REQUESTS_CA_BUNDLE'] = ''
+        logger.warning("  SSL verification DISABLED (DISABLE_SSL_VERIFY=true)")
+
     # Optional: Set other GPT Researcher configs
     if 'MAX_TOKENS' in os.environ:
         os.environ['MAX_TOKENS'] = os.getenv('MAX_TOKENS')
