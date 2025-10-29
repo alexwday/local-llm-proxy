@@ -89,6 +89,10 @@ def setup_researcher_config():
     os.environ['OPENAI_API_KEY'] = proxy_token
     os.environ['RETRIEVER'] = 'duckduckgo'  # Use DuckDuckGo (no API key needed)
 
+    # Override GPT Researcher's model defaults (format: "provider:model")
+    os.environ['SMART_LLM'] = f'openai:{target_model}'  # Main research model
+    os.environ['FAST_LLM'] = f'openai:{target_model}'   # Fast task model
+
     # Optional: Set other GPT Researcher configs
     if 'MAX_TOKENS' in os.environ:
         os.environ['MAX_TOKENS'] = os.getenv('MAX_TOKENS')
