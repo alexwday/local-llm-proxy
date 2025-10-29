@@ -13,6 +13,7 @@ pydantic>=2.0.0
 # GPT Researcher (autonomous research agent)
 # Note: Has 100+ dependencies, first install may take 5-10 minutes
 gpt-researcher==0.14.4
+langchain>=0.3.0  # Required by gpt-researcher but not auto-installed
 
 # RBC Security (install on work computers only)
 # pip install rbc_security
