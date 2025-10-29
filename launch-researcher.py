@@ -73,6 +73,42 @@ def check_proxy_running():
     return False
 
 
+def setup_ddgs_compatibility():
+    """Create ddgs compatibility wrapper for GPT Researcher.
+
+    GPT Researcher expects 'from ddgs import DDGS' but the package is 'duckduckgo_search'.
+    This creates a simple wrapper module to make it work.
+    """
+    try:
+        # Check if wrapper already works
+        import ddgs
+        return True
+    except ImportError:
+        pass
+
+    # Create wrapper in site-packages
+    import site
+    site_packages = site.getsitepackages()[0]
+    wrapper_path = os.path.join(site_packages, 'ddgs.py')
+
+    try:
+        with open(wrapper_path, 'w') as f:
+            f.write('''"""
+Compatibility wrapper for GPT Researcher.
+GPT Researcher expects 'from ddgs import DDGS' but the package is 'duckduckgo_search'.
+"""
+from duckduckgo_search import DDGS, AsyncDDGS
+
+__all__ = ['DDGS', 'AsyncDDGS']
+''')
+        logger.info("✓ Created ddgs compatibility wrapper")
+        return True
+    except Exception as e:
+        logger.warning(f"Could not create ddgs wrapper: {e}")
+        logger.warning("DuckDuckGo search may not work")
+        return False
+
+
 def setup_researcher_config():
     """Setup GPT Researcher configuration using proxy."""
     # Get proxy configuration
@@ -241,17 +277,21 @@ def main():
     setup_rbc_security()
     logger.info("")
 
-    # Step 2: Check if proxy is running
+    # Step 2: Setup DuckDuckGo compatibility wrapper
+    setup_ddgs_compatibility()
+    logger.info("")
+
+    # Step 3: Check if proxy is running
     if not check_proxy_running():
         sys.exit(1)
     logger.info("")
 
-    # Step 3: Setup researcher configuration
+    # Step 4: Setup researcher configuration
     if not setup_researcher_config():
         sys.exit(1)
     logger.info("")
 
-    # Step 4: Parse command line arguments
+    # Step 5: Parse command line arguments
     if len(sys.argv) > 1:
         if sys.argv[1] in ('--interactive', '-i'):
             # Interactive mode

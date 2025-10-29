@@ -14,6 +14,10 @@ pydantic>=2.0.0
 # Note: Has 100+ dependencies, first install may take 5-10 minutes
 gpt-researcher==0.14.4
 
+# Pin duckduckgo-search for GPT Researcher compatibility
+# GPT Researcher expects older import style, newer versions changed API
+duckduckgo-search<6.0
+
 # All required langchain packages (gpt-researcher needs these but doesn't auto-install)
 # NOTE: Using older langchain 0.x because gpt-researcher 0.14.4 uses deprecated imports
 # All packages pinned to 0.3.x for compatibility
