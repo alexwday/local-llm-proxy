@@ -15,15 +15,16 @@ pydantic>=2.0.0
 gpt-researcher==0.14.4
 
 # All required langchain packages (gpt-researcher needs these but doesn't auto-install)
-langchain>=0.3.0
-langchain-core>=0.3.0
-langchain-community>=0.3.0
-langchain-openai>=0.3.0
-langchain-ollama>=0.3.0
-langchain-text-splitters>=0.3.0
-langgraph>=0.2.0
-langgraph-checkpoint>=2.0.0
-langsmith>=0.3.0
+# NOTE: Using older langchain 0.x because gpt-researcher 0.14.4 uses deprecated imports
+langchain<1.0,>=0.3.0
+langchain-core<1.0,>=0.3.0
+langchain-community<1.0,>=0.3.0
+langchain-openai<1.0,>=0.3.0
+langchain-ollama<1.0,>=0.3.0
+langchain-text-splitters<1.0,>=0.3.0
+langgraph<1.0,>=0.2.0
+langgraph-checkpoint<3.0,>=2.0.0
+langsmith<1.0,>=0.3.0
 
 # Other required packages
 fastapi>=0.104.0
