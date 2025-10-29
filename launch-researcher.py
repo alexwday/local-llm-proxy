@@ -109,6 +109,20 @@ __all__ = ['DDGS', 'AsyncDDGS']
         return False
 
 
+def setup_ddgs_retry_patch():
+    """Add retry logic to DuckDuckGo searches to handle rate limits."""
+    try:
+        # Import the patch module
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from ddg_retry_patch import add_retry_to_ddgs
+
+        # Apply the patch
+        return add_retry_to_ddgs()
+    except Exception as e:
+        logger.warning(f"Could not apply DuckDuckGo retry patch: {e}")
+        return False
+
+
 def setup_researcher_config():
     """Setup GPT Researcher configuration using proxy."""
     # Get proxy configuration
@@ -130,6 +144,24 @@ def setup_researcher_config():
     os.environ['SMART_LLM'] = f'openai:{target_model}'      # Main research model (long responses)
     os.environ['FAST_LLM'] = f'openai:{target_model}'       # Fast task model (quick operations)
     os.environ['STRATEGIC_LLM'] = f'openai:{target_model}'  # Strategic planning model
+
+    # Reduce search aggressiveness to avoid DuckDuckGo rate limits (HTTP 202)
+    # These can be overridden in .env if needed:
+    #   MAX_SEARCH_RESULTS_PER_QUERY=3
+    #   MAX_ITERATIONS=2
+    #   MAX_SUBTOPICS=2
+    os.environ['MAX_SEARCH_RESULTS_PER_QUERY'] = os.getenv('MAX_SEARCH_RESULTS_PER_QUERY', '3')
+    os.environ['MAX_ITERATIONS'] = os.getenv('MAX_ITERATIONS', '2')
+    os.environ['MAX_SUBTOPICS'] = os.getenv('MAX_SUBTOPICS', '2')
+
+    # Use more realistic user agent to avoid DuckDuckGo anti-bot detection
+    # DuckDuckGo blocks obvious bot traffic, especially from corporate networks
+    user_agent = os.getenv('USER_AGENT',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36')
+    os.environ['USER_AGENT'] = user_agent
+
+    logger.info(f"  Search limits: {os.environ['MAX_SEARCH_RESULTS_PER_QUERY']} results/query, "
+                f"{os.environ['MAX_ITERATIONS']} iterations, {os.environ['MAX_SUBTOPICS']} subtopics")
 
     # Configure corporate proxy for DuckDuckGo search (if needed)
     # Set these in .env if you're behind a corporate proxy:
@@ -299,6 +331,7 @@ def main():
 
     # Step 2: Setup DuckDuckGo compatibility wrapper
     setup_ddgs_compatibility()
+    setup_ddgs_retry_patch()
     logger.info("")
 
     # Step 3: Check if proxy is running
