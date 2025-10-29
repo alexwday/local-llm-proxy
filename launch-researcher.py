@@ -126,8 +126,10 @@ def setup_researcher_config():
     os.environ['RETRIEVER'] = 'duckduckgo'  # Use DuckDuckGo (no API key needed)
 
     # Override GPT Researcher's model defaults (format: "provider:model")
-    os.environ['SMART_LLM'] = f'openai:{target_model}'  # Main research model
-    os.environ['FAST_LLM'] = f'openai:{target_model}'   # Fast task model
+    # GPT Researcher uses 3 different models - set all to use your configured model
+    os.environ['SMART_LLM'] = f'openai:{target_model}'      # Main research model (long responses)
+    os.environ['FAST_LLM'] = f'openai:{target_model}'       # Fast task model (quick operations)
+    os.environ['STRATEGIC_LLM'] = f'openai:{target_model}'  # Strategic planning model
 
     # Configure corporate proxy for DuckDuckGo search (if needed)
     # Set these in .env if you're behind a corporate proxy:
