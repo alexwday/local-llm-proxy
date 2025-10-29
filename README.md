@@ -138,10 +138,8 @@ Launch GPT Researcher for comprehensive web research with automatic source aggre
 
 **First-time setup:**
 ```bash
-# Install GPT Researcher (already cloned in gpt-researcher-lib/)
-cd gpt-researcher-lib
-pip install -e .
-cd ..
+# Install all dependencies including GPT Researcher
+pip install -r requirements.txt
 ```
 
 **Features:**

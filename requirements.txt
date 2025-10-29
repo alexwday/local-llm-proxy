@@ -11,8 +11,7 @@ playwright>=1.40.0
 pydantic>=2.0.0
 
 # GPT Researcher (autonomous research agent)
-# Install separately from cloned repo:
-#   cd gpt-researcher-lib && pip install -e .
+gpt-researcher>=0.14.0
 
 # RBC Security (install on work computers only)
 # pip install rbc_security
