@@ -11,7 +11,8 @@ playwright>=1.40.0
 pydantic>=2.0.0
 
 # GPT Researcher (autonomous research agent)
-gpt-researcher>=0.14.0
+# Note: Has 100+ dependencies, first install may take 5-10 minutes
+gpt-researcher==0.14.4
 
 # RBC Security (install on work computers only)
 # pip install rbc_security
