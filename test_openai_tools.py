@@ -18,7 +18,9 @@ Configuration:
     - OAUTH_CLIENT_SECRET: OAuth client secret
     - OAUTH_SCOPE: OAuth scope (optional)
     - TARGET_ENDPOINT: Your custom OpenAI-compatible endpoint (e.g., https://api.company.com/v1)
-    - TEST_MODEL: Model to test (default: gpt-5)
+    - TEST_MODEL: Model to test (REQUIRED - e.g., gpt-5, gpt-5-mini, gpt-4o)
+    - GPT5_VERBOSITY: For GPT-5 models - low/medium/high (optional, default: medium)
+    - GPT5_REASONING_EFFORT: For GPT-5 models - minimal/low/medium/high (optional)
 """
 
 import os
@@ -143,21 +145,28 @@ def test_openai_tools():
     oauth_client_secret = os.getenv('OAUTH_CLIENT_SECRET')
     oauth_scope = os.getenv('OAUTH_SCOPE')
     target_endpoint = os.getenv('TARGET_ENDPOINT')
-    test_model = os.getenv('TEST_MODEL', 'gpt-5')
+    test_model = os.getenv('TEST_MODEL')
+    gpt5_verbosity = os.getenv('GPT5_VERBOSITY', 'medium')
+    gpt5_reasoning_effort = os.getenv('GPT5_REASONING_EFFORT')
 
     # Validate configuration
-    if not all([oauth_endpoint, oauth_client_id, oauth_client_secret, target_endpoint]):
+    if not all([oauth_endpoint, oauth_client_id, oauth_client_secret, target_endpoint, test_model]):
         print("❌ Missing required configuration!")
         print("\nRequired environment variables:")
         print("  - OAUTH_TOKEN_ENDPOINT")
         print("  - OAUTH_CLIENT_ID")
         print("  - OAUTH_CLIENT_SECRET")
         print("  - TARGET_ENDPOINT")
+        print("  - TEST_MODEL (e.g., gpt-5, gpt-5-mini, gpt-4o)")
         print("\nOptional:")
         print("  - OAUTH_SCOPE")
-        print("  - TEST_MODEL (default: gpt-5)")
+        print("  - GPT5_VERBOSITY (low/medium/high, default: medium)")
+        print("  - GPT5_REASONING_EFFORT (minimal/low/medium/high)")
         print("\nSet these in your .env file or environment.")
         sys.exit(1)
+
+    # Detect if using GPT-5 model
+    is_gpt5 = test_model.startswith('gpt-5')
 
     print("=" * 80)
     print("🧪 OpenAI Built-in Tools Test")
@@ -165,6 +174,11 @@ def test_openai_tools():
     print(f"\n📍 Endpoint: {target_endpoint}")
     print(f"🤖 Model: {test_model}")
     print(f"🔑 OAuth Endpoint: {oauth_endpoint}")
+    if is_gpt5:
+        print(f"🧠 GPT-5 Verbosity: {gpt5_verbosity}")
+        if gpt5_reasoning_effort:
+            print(f"🧠 GPT-5 Reasoning Effort: {gpt5_reasoning_effort}")
+        print("ℹ️  Note: GPT-5 only supports temperature=1 (default)")
     print()
 
     try:
@@ -192,16 +206,28 @@ def test_openai_tools():
         print("Test 1: Ask model about its capabilities")
         print("=" * 80)
 
-        response = client.chat.completions.create(
-            model=test_model,
-            messages=[
+        # Build request parameters
+        request_params = {
+            "model": test_model,
+            "messages": [
                 {
                     "role": "user",
                     "content": "What tools and capabilities do you have access to? Can you search the web? List all available tools you can use."
                 }
-            ],
-            temperature=0.1
-        )
+            ]
+        }
+
+        # Add GPT-5 specific parameters if applicable
+        if is_gpt5:
+            request_params["verbosity"] = gpt5_verbosity
+            if gpt5_reasoning_effort:
+                request_params["reasoning_effort"] = gpt5_reasoning_effort
+            # Don't set temperature for GPT-5 (only supports default value of 1)
+        else:
+            # For non-GPT-5 models, use temperature
+            request_params["temperature"] = 0.1
+
+        response = client.chat.completions.create(**request_params)
 
         content = response.choices[0].message.content
         print(f"\n📝 Model Response:\n{content}\n")
@@ -226,16 +252,24 @@ def test_openai_tools():
         print("=" * 80)
         print("Asking: 'What is the current weather in New York City right now?'\n")
 
-        response2 = client.chat.completions.create(
-            model=test_model,
-            messages=[
+        request_params2 = {
+            "model": test_model,
+            "messages": [
                 {
                     "role": "user",
                     "content": "What is the current weather in New York City right now? If you can search the web, please do so."
                 }
-            ],
-            temperature=0.1
-        )
+            ]
+        }
+
+        if is_gpt5:
+            request_params2["verbosity"] = gpt5_verbosity
+            if gpt5_reasoning_effort:
+                request_params2["reasoning_effort"] = gpt5_reasoning_effort
+        else:
+            request_params2["temperature"] = 0.1
+
+        response2 = client.chat.completions.create(**request_params2)
 
         content2 = response2.choices[0].message.content
         print(f"📝 Model Response:\n{content2}\n")
@@ -261,16 +295,24 @@ def test_openai_tools():
         print("=" * 80)
         print("Asking: 'Search the web for the latest news today'\n")
 
-        response3 = client.chat.completions.create(
-            model=test_model,
-            messages=[
+        request_params3 = {
+            "model": test_model,
+            "messages": [
                 {
                     "role": "user",
                     "content": "Search the web for the latest news headlines today. Use any web search tools you have available."
                 }
-            ],
-            temperature=0.1
-        )
+            ]
+        }
+
+        if is_gpt5:
+            request_params3["verbosity"] = gpt5_verbosity
+            if gpt5_reasoning_effort:
+                request_params3["reasoning_effort"] = gpt5_reasoning_effort
+        else:
+            request_params3["temperature"] = 0.1
+
+        response3 = client.chat.completions.create(**request_params3)
 
         content3 = response3.choices[0].message.content
         print(f"📝 Model Response:\n{content3}\n")
