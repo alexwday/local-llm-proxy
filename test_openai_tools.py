@@ -234,6 +234,31 @@ def test_openai_tools():
             print(f"Request params: {json.dumps(request_params, indent=2)}")
             raise
 
+        # Debug: Print full response structure
+        print("🔍 Debug - Full Response Structure:")
+        print(f"   Response type: {type(response)}")
+        print(f"   Has choices: {hasattr(response, 'choices')}")
+        if hasattr(response, 'choices'):
+            print(f"   Number of choices: {len(response.choices)}")
+            if len(response.choices) > 0:
+                print(f"   Choice[0] type: {type(response.choices[0])}")
+                print(f"   Has message: {hasattr(response.choices[0], 'message')}")
+                if hasattr(response.choices[0], 'message'):
+                    msg = response.choices[0].message
+                    print(f"   Message type: {type(msg)}")
+                    print(f"   Message attributes: {dir(msg)}")
+                    # Try to print the message as dict if possible
+                    if hasattr(msg, 'model_dump'):
+                        print(f"   Message content (model_dump): {json.dumps(msg.model_dump(), indent=2)}")
+                    elif hasattr(msg, '__dict__'):
+                        print(f"   Message __dict__: {msg.__dict__}")
+
+        # Try to get the raw response if possible
+        if hasattr(response, 'model_dump'):
+            print(f"\n📦 Raw Response Object:")
+            print(json.dumps(response.model_dump(), indent=2, default=str))
+        print()
+
         content = response.choices[0].message.content
 
         if content:
