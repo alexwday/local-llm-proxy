@@ -227,22 +227,38 @@ def test_openai_tools():
             # For non-GPT-5 models, use temperature
             request_params["temperature"] = 0.1
 
-        response = client.chat.completions.create(**request_params)
+        try:
+            response = client.chat.completions.create(**request_params)
+        except Exception as e:
+            print(f"❌ API request failed: {e}")
+            print(f"Request params: {json.dumps(request_params, indent=2)}")
+            raise
 
         content = response.choices[0].message.content
-        print(f"\n📝 Model Response:\n{content}\n")
 
-        # Check if response mentions web search or tools
-        response_lower = content.lower()
-        has_tools_mention = any(keyword in response_lower for keyword in [
-            'web search', 'search the web', 'browse', 'internet search',
-            'tool', 'function', 'capability', 'access to'
-        ])
+        if content:
+            print(f"\n📝 Model Response:\n{content}\n")
 
-        if has_tools_mention:
-            print("✅ Model mentions tools/capabilities in response")
+            # Check if response mentions web search or tools
+            response_lower = content.lower()
+            has_tools_mention = any(keyword in response_lower for keyword in [
+                'web search', 'search the web', 'browse', 'internet search',
+                'tool', 'function', 'capability', 'access to'
+            ])
+
+            if has_tools_mention:
+                print("✅ Model mentions tools/capabilities in response")
+            else:
+                print("⚠️  Model does not explicitly mention tools")
         else:
-            print("⚠️  Model does not explicitly mention tools")
+            print("⚠️  Response content is None (may have tool_calls instead)")
+            msg = response.choices[0].message
+            print(f"📋 Message role: {msg.role}")
+            print(f"📋 Has tool_calls: {hasattr(msg, 'tool_calls') and msg.tool_calls is not None}")
+            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                print(f"📋 Number of tool calls: {len(msg.tool_calls)}")
+                for tc in msg.tool_calls:
+                    print(f"   - {tc.function.name}: {tc.function.arguments}")
 
         print()
 
@@ -272,7 +288,11 @@ def test_openai_tools():
         response2 = client.chat.completions.create(**request_params2)
 
         content2 = response2.choices[0].message.content
-        print(f"📝 Model Response:\n{content2}\n")
+
+        if content2:
+            print(f"📝 Model Response:\n{content2}\n")
+        else:
+            print("⚠️  Response content is None (checking for tool_calls...)\n")
 
         # Check for tool usage indicators
         if hasattr(response2.choices[0].message, 'tool_calls') and response2.choices[0].message.tool_calls:
@@ -315,7 +335,11 @@ def test_openai_tools():
         response3 = client.chat.completions.create(**request_params3)
 
         content3 = response3.choices[0].message.content
-        print(f"📝 Model Response:\n{content3}\n")
+
+        if content3:
+            print(f"📝 Model Response:\n{content3}\n")
+        else:
+            print("⚠️  Response content is None (checking for tool_calls...)\n")
 
         if hasattr(response3.choices[0].message, 'tool_calls') and response3.choices[0].message.tool_calls:
             print("🎉 FOUND TOOL CALLS!")
